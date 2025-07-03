@@ -1,6 +1,6 @@
 [user]
-  name = DavidDeadly
-  email = jdrueda513@gmail.com
+	name = davroid
+	email = 88601542+davroid@users.noreply.github.com
 [init]
 	defaultBranch = main
 [pull]
@@ -17,3 +17,10 @@
   dark = true
   line-numbers = true
   side-by-side = true
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+[push]
+	autoSetupRemote = true

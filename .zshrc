@@ -103,6 +103,8 @@ source $ZSH/oh-my-zsh.sh
 #
 export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
 
+export SSH_AUTH_SOCK=/home/daviddeadly/.bitwarden-ssh-agent.sock
+
 # append completions to fpath
 fpath=(${ASDF_DATA_DIR:-$HOME/.asdf}/completions $fpath)
 # initialise completions with ZSH's compinit
