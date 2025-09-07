@@ -8,6 +8,7 @@ hyprlock
 hypridle
 hyprcursor
 hyprpicker
+otd-daemon
 hyprunset
 hyprpolkitagent
 wl-clipboard
