@@ -30,6 +30,8 @@ ianny
 
 brightnessctl
 pavucontrol
+bluez
+bluez-utils
 
 noto-fonts
 noto-fonts-emoji
