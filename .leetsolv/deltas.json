@@ -1,0 +1,21 @@
+[
+  {
+    "action": "add",
+    "question_id": 1,
+    "old_state": null,
+    "new_state": {
+      "id": 1,
+      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
+      "note": "prefix sum practice problem",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-20T00:00:00-05:00",
+      "next_review": "2025-10-03T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-20T12:10:56.79801891-05:00",
+      "created_at": "2025-09-20T12:10:56.798023101-05:00"
+    },
+    "created_at": "2025-09-20T12:10:56.798128564-05:00"
+  }
+]

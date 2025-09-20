@@ -122,6 +122,7 @@ alias vimdiff=nvim -d
 alias cat=bat
 alias ls="eza --long --git --group-directories-first --color=always --icons=always --no-time --no-user --no-filesize"
 alias rm=rip
+alias dsa="TMPDIR=$HOME/.leetsolv/tmp leetsolv"
 
 eval "$(fzf --zsh)"
 

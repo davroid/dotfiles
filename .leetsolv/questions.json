@@ -1,0 +1,387 @@
+{
+  "max_id": 1,
+  "questions": {
+    "1": {
+      "id": 1,
+      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
+      "note": "prefix sum practice problem",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-20T00:00:00-05:00",
+      "next_review": "2025-10-03T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-20T12:10:56.79801891-05:00",
+      "created_at": "2025-09-20T12:10:56.798023101-05:00"
+    }
+  },
+  "url_index": {
+    "https://leetcode.com/problems/range-sum-query-immutable/": 1
+  },
+  "url_trie": {
+    "Root": {
+      "Children": {
+        "105": {
+          "Children": {
+            "109": {
+              "Children": {
+                "109": {
+                  "Children": {
+                    "117": {
+                      "Children": {
+                        "116": {
+                          "Children": {
+                            "97": {
+                              "Children": {
+                                "98": {
+                                  "Children": {
+                                    "108": {
+                                      "Children": {
+                                        "101": {
+                                          "Children": {},
+                                          "IDs": {
+                                            "1": {}
+                                          },
+                                          "WordEndIDs": {
+                                            "1": {}
+                                          }
+                                        }
+                                      },
+                                      "IDs": {
+                                        "1": {}
+                                      },
+                                      "WordEndIDs": {}
+                                    }
+                                  },
+                                  "IDs": {
+                                    "1": {}
+                                  },
+                                  "WordEndIDs": {}
+                                }
+                              },
+                              "IDs": {
+                                "1": {}
+                              },
+                              "WordEndIDs": {}
+                            }
+                          },
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {}
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        },
+        "113": {
+          "Children": {
+            "117": {
+              "Children": {
+                "101": {
+                  "Children": {
+                    "114": {
+                      "Children": {
+                        "121": {
+                          "Children": {},
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {
+                            "1": {}
+                          }
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        },
+        "114": {
+          "Children": {
+            "97": {
+              "Children": {
+                "110": {
+                  "Children": {
+                    "103": {
+                      "Children": {
+                        "101": {
+                          "Children": {},
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {
+                            "1": {}
+                          }
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        },
+        "115": {
+          "Children": {
+            "117": {
+              "Children": {
+                "109": {
+                  "Children": {},
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {
+                    "1": {}
+                  }
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        }
+      },
+      "IDs": {
+        "1": {}
+      },
+      "WordEndIDs": {}
+    },
+    "MinPrefixLength": 3
+  },
+  "note_trie": {
+    "Root": {
+      "Children": {
+        "112": {
+          "Children": {
+            "114": {
+              "Children": {
+                "101": {
+                  "Children": {
+                    "102": {
+                      "Children": {
+                        "105": {
+                          "Children": {
+                            "120": {
+                              "Children": {},
+                              "IDs": {
+                                "1": {}
+                              },
+                              "WordEndIDs": {
+                                "1": {}
+                              }
+                            }
+                          },
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {}
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                },
+                "111": {
+                  "Children": {
+                    "98": {
+                      "Children": {
+                        "108": {
+                          "Children": {
+                            "101": {
+                              "Children": {
+                                "109": {
+                                  "Children": {},
+                                  "IDs": {
+                                    "1": {}
+                                  },
+                                  "WordEndIDs": {
+                                    "1": {}
+                                  }
+                                }
+                              },
+                              "IDs": {
+                                "1": {}
+                              },
+                              "WordEndIDs": {}
+                            }
+                          },
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {}
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                },
+                "97": {
+                  "Children": {
+                    "99": {
+                      "Children": {
+                        "116": {
+                          "Children": {
+                            "105": {
+                              "Children": {
+                                "99": {
+                                  "Children": {
+                                    "101": {
+                                      "Children": {},
+                                      "IDs": {
+                                        "1": {}
+                                      },
+                                      "WordEndIDs": {
+                                        "1": {}
+                                      }
+                                    }
+                                  },
+                                  "IDs": {
+                                    "1": {}
+                                  },
+                                  "WordEndIDs": {}
+                                }
+                              },
+                              "IDs": {
+                                "1": {}
+                              },
+                              "WordEndIDs": {}
+                            }
+                          },
+                          "IDs": {
+                            "1": {}
+                          },
+                          "WordEndIDs": {}
+                        }
+                      },
+                      "IDs": {
+                        "1": {}
+                      },
+                      "WordEndIDs": {}
+                    }
+                  },
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {}
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        },
+        "115": {
+          "Children": {
+            "117": {
+              "Children": {
+                "109": {
+                  "Children": {},
+                  "IDs": {
+                    "1": {}
+                  },
+                  "WordEndIDs": {
+                    "1": {}
+                  }
+                }
+              },
+              "IDs": {
+                "1": {}
+              },
+              "WordEndIDs": {}
+            }
+          },
+          "IDs": {
+            "1": {}
+          },
+          "WordEndIDs": {}
+        }
+      },
+      "IDs": {
+        "1": {}
+      },
+      "WordEndIDs": {}
+    },
+    "MinPrefixLength": 3
+  }
+}
