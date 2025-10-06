@@ -122,7 +122,7 @@ alias vimdiff=nvim -d
 alias cat=bat
 alias ls="eza --long --git --group-directories-first --color=always --icons=always --no-time --no-user --no-filesize"
 alias rm=rip
-alias dsa="TMPDIR=$HOME/.leetsolv/tmp leetsolv"
+alias dsa=leetsolv
 
 eval "$(fzf --zsh)"
 
@@ -176,3 +176,11 @@ _fzf_comprun() {
   esac
 }
 
+
+# pnpm
+export PNPM_HOME="/home/daviddeadly/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end

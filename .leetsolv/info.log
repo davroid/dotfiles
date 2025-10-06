@@ -1,1 +1,17 @@
 INFO: 2025/09/20 12:10:56 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/range-sum-query-immutable/, Familiarity=3, Importance=0
+INFO: 2025/09/22 21:35:14 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/range-sum-query-2d-immutable/, Familiarity=2, Importance=1
+INFO: 2025/09/23 21:12:32 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/reverse-linked-list/, Familiarity=2, Importance=0
+INFO: 2025/09/23 23:09:39 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/reverse-linked-list/, Familiarity=2, Importance=1
+INFO: 2025/09/23 23:13:58 usecase.go:332: Deleting question: Target=3
+INFO: 2025/09/23 23:14:36 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/reverse-linked-list/, Familiarity=2, Importance=1
+INFO: 2025/09/24 20:12:11 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/merge-two-sorted-lists/, Familiarity=1, Importance=1
+INFO: 2025/09/24 23:06:06 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/group-anagrams/, Familiarity=3, Importance=0
+INFO: 2025/09/26 00:32:15 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/product-of-array-except-self/, Familiarity=1, Importance=1
+INFO: 2025/09/27 22:20:35 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/design-linked-list/, Familiarity=2, Importance=1
+INFO: 2025/09/28 14:21:13 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/design-browser-history/, Familiarity=3, Importance=0
+INFO: 2025/09/28 15:43:43 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/number-of-students-unable-to-eat-lunch/, Familiarity=3, Importance=0
+INFO: 2025/09/28 16:38:27 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/implement-stack-using-queues/, Familiarity=3, Importance=0
+INFO: 2025/09/30 01:03:03 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/climbing-stairs/, Familiarity=1, Importance=0
+INFO: 2025/10/03 20:46:23 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/sort-colors/, Familiarity=3, Importance=0
+INFO: 2025/10/05 18:00:11 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/remove-duplicates-from-sorted-array/, Familiarity=2, Importance=0
+INFO: 2025/10/05 19:51:16 usecase.go:223: Upserting question: URL=https://leetcode.com/problems/product-of-array-except-self/, Familiarity=3, Importance=0
