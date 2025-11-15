@@ -1,265 +1,6 @@
 [
   {
     "action": "add",
-    "question_id": 1,
-    "old_state": null,
-    "new_state": {
-      "id": 1,
-      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
-      "note": "prefix sum practice problem",
-      "familiarity": 3,
-      "importance": 0,
-      "last_reviewed": "2025-09-20T00:00:00-05:00",
-      "next_review": "2025-10-03T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-20T12:10:56.79801891-05:00",
-      "created_at": "2025-09-20T12:10:56.798023101-05:00"
-    },
-    "created_at": "2025-09-20T12:10:56.798128564-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 2,
-    "old_state": null,
-    "new_state": {
-      "id": 2,
-      "url": "https://leetcode.com/problems/range-sum-query-2d-immutable/",
-      "note": "sum all nums within given 2D range, rect shape",
-      "familiarity": 2,
-      "importance": 1,
-      "last_reviewed": "2025-09-22T00:00:00-05:00",
-      "next_review": "2025-09-30T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 1.9,
-      "updated_at": "2025-09-22T21:35:14.937788541-05:00",
-      "created_at": "2025-09-22T21:35:14.937791335-05:00"
-    },
-    "created_at": "2025-09-22T21:35:14.93786474-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 3,
-    "old_state": null,
-    "new_state": {
-      "id": 3,
-      "url": "https://leetcode.com/problems/reverse-linked-list/",
-      "note": "use variable as a stack, swap variables and reverse node by node",
-      "familiarity": 2,
-      "importance": 0,
-      "last_reviewed": "2025-09-23T00:00:00-05:00",
-      "next_review": "2025-10-03T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-23T21:12:32.708242831-05:00",
-      "created_at": "2025-09-23T21:12:32.708245695-05:00"
-    },
-    "created_at": "2025-09-23T21:12:32.708321615-05:00"
-  },
-  {
-    "action": "update",
-    "question_id": 3,
-    "old_state": {
-      "id": 3,
-      "url": "https://leetcode.com/problems/reverse-linked-list/",
-      "note": "use variable as a stack, swap variables and reverse node by node",
-      "familiarity": 2,
-      "importance": 0,
-      "last_reviewed": "2025-09-23T00:00:00-05:00",
-      "next_review": "2025-10-03T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-23T21:12:32.708242831-05:00",
-      "created_at": "2025-09-23T21:12:32.708245695-05:00"
-    },
-    "new_state": {
-      "id": 3,
-      "url": "https://leetcode.com/problems/reverse-linked-list/",
-      "note": "use variable as a stack, swap variables and reverse node by node, TRY recursive approach also",
-      "familiarity": 2,
-      "importance": 1,
-      "last_reviewed": "2025-09-23T00:00:00-05:00",
-      "next_review": "2025-10-13T00:00:00-05:00",
-      "review_count": 2,
-      "ease_factor": 2,
-      "updated_at": "2025-09-23T23:09:39.870594926-05:00",
-      "created_at": "2025-09-23T21:12:32.708245695-05:00"
-    },
-    "created_at": "2025-09-23T23:09:39.870655057-05:00"
-  },
-  {
-    "action": "delete",
-    "question_id": 3,
-    "old_state": {
-      "id": 3,
-      "url": "https://leetcode.com/problems/reverse-linked-list/",
-      "note": "use variable as a stack, swap variables and reverse node by node, TRY recursive approach also",
-      "familiarity": 2,
-      "importance": 1,
-      "last_reviewed": "2025-09-23T00:00:00-05:00",
-      "next_review": "2025-10-13T00:00:00-05:00",
-      "review_count": 2,
-      "ease_factor": 2,
-      "updated_at": "2025-09-23T23:09:39.870594926-05:00",
-      "created_at": "2025-09-23T21:12:32.708245695-05:00"
-    },
-    "new_state": null,
-    "created_at": "2025-09-23T23:13:58.792939395-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 4,
-    "old_state": null,
-    "new_state": {
-      "id": 4,
-      "url": "https://leetcode.com/problems/reverse-linked-list/",
-      "note": "use variable as a stack, swap variables and reverse node by node, TRY recursive approach as well",
-      "familiarity": 2,
-      "importance": 1,
-      "last_reviewed": "2025-09-23T00:00:00-05:00",
-      "next_review": "2025-10-03T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 1.9,
-      "updated_at": "2025-09-23T23:14:36.217518184-05:00",
-      "created_at": "2025-09-23T23:14:36.217520559-05:00"
-    },
-    "created_at": "2025-09-23T23:14:36.217577409-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 5,
-    "old_state": null,
-    "new_state": {
-      "id": 5,
-      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
-      "note": "build new list, keeping ascending order, go one by one",
-      "familiarity": 1,
-      "importance": 1,
-      "last_reviewed": "2025-09-24T00:00:00-05:00",
-      "next_review": "2025-09-30T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 1.9,
-      "updated_at": "2025-09-24T20:12:11.384342109-05:00",
-      "created_at": "2025-09-24T20:12:11.384344973-05:00"
-    },
-    "created_at": "2025-09-24T20:12:11.384391278-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 6,
-    "old_state": null,
-    "new_state": {
-      "id": 6,
-      "url": "https://leetcode.com/problems/group-anagrams/",
-      "note": "hashmap, try both solution sorting words or counting letter",
-      "familiarity": 3,
-      "importance": 0,
-      "last_reviewed": "2025-09-24T00:00:00-05:00",
-      "next_review": "2025-10-06T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-24T23:06:06.320350125-05:00",
-      "created_at": "2025-09-24T23:06:06.320352919-05:00"
-    },
-    "created_at": "2025-09-24T23:06:06.320412286-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 7,
-    "old_state": null,
-    "new_state": {
-      "id": 7,
-      "url": "https://leetcode.com/problems/product-of-array-except-self/",
-      "note": "prefix, suffix product then multiply",
-      "familiarity": 1,
-      "importance": 1,
-      "last_reviewed": "2025-09-26T00:00:00-05:00",
-      "next_review": "2025-10-02T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 1.9,
-      "updated_at": "2025-09-26T00:32:15.043374477-05:00",
-      "created_at": "2025-09-26T00:32:15.04337783-05:00"
-    },
-    "created_at": "2025-09-26T00:32:15.043423018-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 8,
-    "old_state": null,
-    "new_state": {
-      "id": 8,
-      "url": "https://leetcode.com/problems/design-linked-list/",
-      "note": "",
-      "familiarity": 2,
-      "importance": 1,
-      "last_reviewed": "2025-09-27T00:00:00-05:00",
-      "next_review": "2025-10-05T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 1.9,
-      "updated_at": "2025-09-27T22:20:35.155118488-05:00",
-      "created_at": "2025-09-27T22:20:35.155121421-05:00"
-    },
-    "created_at": "2025-09-27T22:20:35.155154806-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 9,
-    "old_state": null,
-    "new_state": {
-      "id": 9,
-      "url": "https://leetcode.com/problems/design-browser-history/",
-      "note": "we need to go back and forth through a list in constant time",
-      "familiarity": 3,
-      "importance": 0,
-      "last_reviewed": "2025-09-28T00:00:00-05:00",
-      "next_review": "2025-10-11T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-28T14:21:13.955014013-05:00",
-      "created_at": "2025-09-28T14:21:13.955017295-05:00"
-    },
-    "created_at": "2025-09-28T14:21:13.955063671-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 10,
-    "old_state": null,
-    "new_state": {
-      "id": 10,
-      "url": "https://leetcode.com/problems/number-of-students-unable-to-eat-lunch/",
-      "note": "have a counting variable to check if any student in the queue wants the top sandwich",
-      "familiarity": 3,
-      "importance": 0,
-      "last_reviewed": "2025-09-28T00:00:00-05:00",
-      "next_review": "2025-10-13T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-28T15:43:43.555843409-05:00",
-      "created_at": "2025-09-28T15:43:43.555845784-05:00"
-    },
-    "created_at": "2025-09-28T15:43:43.555951665-05:00"
-  },
-  {
-    "action": "add",
-    "question_id": 11,
-    "old_state": null,
-    "new_state": {
-      "id": 11,
-      "url": "https://leetcode.com/problems/implement-stack-using-queues/",
-      "note": "rotate the whole array on each push",
-      "familiarity": 3,
-      "importance": 0,
-      "last_reviewed": "2025-09-28T00:00:00-05:00",
-      "next_review": "2025-10-12T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-28T16:38:27.13314894-05:00",
-      "created_at": "2025-09-28T16:38:27.133151804-05:00"
-    },
-    "created_at": "2025-09-28T16:38:27.133204815-05:00"
-  },
-  {
-    "action": "add",
     "question_id": 12,
     "old_state": null,
     "new_state": {
@@ -345,5 +86,1167 @@
       "created_at": "2025-09-26T00:32:15.04337783-05:00"
     },
     "created_at": "2025-10-05T19:51:16.974910427-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 8,
+    "old_state": {
+      "id": 8,
+      "url": "https://leetcode.com/problems/design-linked-list/",
+      "note": "",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-09-27T00:00:00-05:00",
+      "next_review": "2025-10-05T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-09-27T22:20:35.155118488-05:00",
+      "created_at": "2025-09-27T22:20:35.155121421-05:00"
+    },
+    "new_state": {
+      "id": 8,
+      "url": "https://leetcode.com/problems/design-linked-list/",
+      "note": "use dummy node, check length on index based operations",
+      "familiarity": 1,
+      "importance": 1,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-10-23T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.75,
+      "updated_at": "2025-10-07T06:32:00.154523661-05:00",
+      "created_at": "2025-09-27T22:20:35.155121421-05:00"
+    },
+    "created_at": "2025-10-07T06:32:00.154552715-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 1,
+    "old_state": {
+      "id": 1,
+      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
+      "note": "prefix sum practice problem",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-20T00:00:00-05:00",
+      "next_review": "2025-10-03T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-20T12:10:56.79801891-05:00",
+      "created_at": "2025-09-20T12:10:56.798023101-05:00"
+    },
+    "new_state": {
+      "id": 1,
+      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
+      "note": "",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-11-04T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.1999999999999997,
+      "updated_at": "2025-10-07T07:14:56.148519399-05:00",
+      "created_at": "2025-09-20T12:10:56.798023101-05:00"
+    },
+    "created_at": "2025-10-07T07:14:56.148531203-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 5,
+    "old_state": {
+      "id": 5,
+      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
+      "note": "build new list, keeping ascending order, go one by one",
+      "familiarity": 1,
+      "importance": 1,
+      "last_reviewed": "2025-09-24T00:00:00-05:00",
+      "next_review": "2025-09-30T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-09-24T20:12:11.384342109-05:00",
+      "created_at": "2025-09-24T20:12:11.384344973-05:00"
+    },
+    "new_state": {
+      "id": 5,
+      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
+      "note": "new list, two pointer, add smaller, go one by one, add remaining",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-10-17T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0999999999999996,
+      "updated_at": "2025-10-07T07:33:49.048135004-05:00",
+      "created_at": "2025-09-24T20:12:11.384344973-05:00"
+    },
+    "created_at": "2025-10-07T07:33:49.0481723-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 4,
+    "old_state": {
+      "id": 4,
+      "url": "https://leetcode.com/problems/reverse-linked-list/",
+      "note": "use variable as a stack, swap variables and reverse node by node, TRY recursive approach as well",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-09-23T00:00:00-05:00",
+      "next_review": "2025-10-03T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-09-23T23:14:36.217518184-05:00",
+      "created_at": "2025-09-23T23:14:36.217520559-05:00"
+    },
+    "new_state": {
+      "id": 4,
+      "url": "https://leetcode.com/problems/reverse-linked-list/",
+      "note": "solve iter an recursively; swapping with prev and many nodes can point to the same node",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-10-25T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9,
+      "updated_at": "2025-10-07T09:03:00.311545864-05:00",
+      "created_at": "2025-09-23T23:14:36.217520559-05:00"
+    },
+    "created_at": "2025-10-07T09:03:00.311582112-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 15,
+    "old_state": null,
+    "new_state": {
+      "id": 15,
+      "url": "https://leetcode.com/problems/subarray-sum-equals-k/",
+      "note": "subtract k from current prefix to get prefixes to subtract, store previously seen prefixes",
+      "familiarity": 1,
+      "importance": 3,
+      "last_reviewed": "2025-10-08T00:00:00-05:00",
+      "next_review": "2025-10-13T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-08T07:52:33.351516455-05:00",
+      "created_at": "2025-10-08T07:52:33.351516575-05:00"
+    },
+    "created_at": "2025-10-08T07:52:33.351584043-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 16,
+    "old_state": null,
+    "new_state": {
+      "id": 16,
+      "url": "https://leetcode.com/problems/lru-cache/",
+      "note": "multi data structure coordination",
+      "familiarity": 3,
+      "importance": 3,
+      "last_reviewed": "2025-10-09T00:00:00-05:00",
+      "next_review": "2025-10-17T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-09T07:20:12.072947068-05:00",
+      "created_at": "2025-10-09T07:20:12.072947178-05:00"
+    },
+    "created_at": "2025-10-09T07:20:12.072988567-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 2,
+    "old_state": {
+      "id": 2,
+      "url": "https://leetcode.com/problems/range-sum-query-2d-immutable/",
+      "note": "sum all nums within given 2D range, rect shape",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-09-22T00:00:00-05:00",
+      "next_review": "2025-09-30T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-09-22T21:35:14.937788541-05:00",
+      "created_at": "2025-09-22T21:35:14.937791335-05:00"
+    },
+    "new_state": {
+      "id": 2,
+      "url": "https://leetcode.com/problems/range-sum-query-2d-immutable/",
+      "note": "compute sum from 0,0 to each cell and subtract extras when querying",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-10T00:00:00-05:00",
+      "next_review": "2025-10-24T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9,
+      "updated_at": "2025-10-10T15:27:49.611015108-05:00",
+      "created_at": "2025-09-22T21:35:14.937791335-05:00"
+    },
+    "created_at": "2025-10-10T15:27:49.611048871-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 6,
+    "old_state": {
+      "id": 6,
+      "url": "https://leetcode.com/problems/group-anagrams/",
+      "note": "hashmap, try both solution sorting words or counting letter",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-24T00:00:00-05:00",
+      "next_review": "2025-10-06T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-24T23:06:06.320350125-05:00",
+      "created_at": "2025-09-24T23:06:06.320352919-05:00"
+    },
+    "new_state": {
+      "id": 6,
+      "url": "https://leetcode.com/problems/group-anagrams/",
+      "note": "group words by a signature, sorting? counting?",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-10-10T00:00:00-05:00",
+      "next_review": "2025-11-05T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0999999999999996,
+      "updated_at": "2025-10-10T16:03:43.553342997-05:00",
+      "created_at": "2025-09-24T23:06:06.320352919-05:00"
+    },
+    "created_at": "2025-10-10T16:03:43.553381459-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 12,
+    "old_state": {
+      "id": 12,
+      "url": "https://leetcode.com/problems/climbing-stairs/",
+      "note": "fibonacci sequence relation",
+      "familiarity": 1,
+      "importance": 0,
+      "last_reviewed": "2025-09-30T00:00:00-05:00",
+      "next_review": "2025-10-09T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-30T01:03:03.538678922-05:00",
+      "created_at": "2025-09-30T01:03:03.538681227-05:00"
+    },
+    "new_state": {
+      "id": 12,
+      "url": "https://leetcode.com/problems/climbing-stairs/",
+      "note": "in each step you only have two option, you either give 1 or 2 steps",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-10-10T00:00:00-05:00",
+      "next_review": "2025-10-30T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0799999999999996,
+      "updated_at": "2025-10-10T16:46:14.996299107-05:00",
+      "created_at": "2025-09-30T01:03:03.538681227-05:00"
+    },
+    "created_at": "2025-10-10T16:46:14.996346206-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 17,
+    "old_state": null,
+    "new_state": {
+      "id": 17,
+      "url": "https://leetcode.com/problems/mergeSort/",
+      "note": "divide by half and merge recursively; implement both with slices and in-place",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-10-20T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-12T15:44:56.88105631-05:00",
+      "created_at": "2025-10-12T15:44:56.88105644-05:00"
+    },
+    "created_at": "2025-10-12T15:44:56.881127305-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 18,
+    "old_state": null,
+    "new_state": {
+      "id": 18,
+      "url": "https://leetcode.com/problems/insertionSort/",
+      "note": "extract, compare and insert the current element on the sorted side",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-10-12T19:18:47.17614152-05:00",
+      "created_at": "2025-10-12T19:18:47.1761416-05:00"
+    },
+    "created_at": "2025-10-12T19:18:47.176172729-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 9,
+    "old_state": {
+      "id": 9,
+      "url": "https://leetcode.com/problems/design-browser-history/",
+      "note": "we need to go back and forth through a list in constant time",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-28T00:00:00-05:00",
+      "next_review": "2025-10-11T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-28T14:21:13.955014013-05:00",
+      "created_at": "2025-09-28T14:21:13.955017295-05:00"
+    },
+    "new_state": {
+      "id": 9,
+      "url": "https://leetcode.com/problems/design-browser-history/",
+      "note": "implement both linked list and stack version",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-11-09T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.98,
+      "updated_at": "2025-10-12T21:42:55.724498896-05:00",
+      "created_at": "2025-09-28T14:21:13.955017295-05:00"
+    },
+    "created_at": "2025-10-12T21:42:55.724518944-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 11,
+    "old_state": {
+      "id": 11,
+      "url": "https://leetcode.com/problems/implement-stack-using-queues/",
+      "note": "rotate the whole array on each push",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-28T00:00:00-05:00",
+      "next_review": "2025-10-12T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-28T16:38:27.13314894-05:00",
+      "created_at": "2025-09-28T16:38:27.133151804-05:00"
+    },
+    "new_state": {
+      "id": 11,
+      "url": "https://leetcode.com/problems/implement-stack-using-queues/",
+      "note": "rotate the underlying queue whether on push or pop",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-11-12T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0799999999999996,
+      "updated_at": "2025-10-12T22:50:56.2420587-05:00",
+      "created_at": "2025-09-28T16:38:27.133151804-05:00"
+    },
+    "created_at": "2025-10-12T22:50:56.242087976-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 15,
+    "old_state": {
+      "id": 15,
+      "url": "https://leetcode.com/problems/subarray-sum-equals-k/",
+      "note": "subtract k from current prefix to get prefixes to subtract, store previously seen prefixes",
+      "familiarity": 1,
+      "importance": 3,
+      "last_reviewed": "2025-10-08T00:00:00-05:00",
+      "next_review": "2025-10-13T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-08T07:52:33.351516455-05:00",
+      "created_at": "2025-10-08T07:52:33.351516575-05:00"
+    },
+    "new_state": {
+      "id": 15,
+      "url": "https://leetcode.com/problems/subarray-sum-equals-k/",
+      "note": "prefix sum with caching, subtract k from current prefix to get prefix to subtract, store previously seen prefixes",
+      "familiarity": 3,
+      "importance": 3,
+      "last_reviewed": "2025-10-13T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.76,
+      "updated_at": "2025-10-13T12:51:30.600581683-05:00",
+      "created_at": "2025-10-08T07:52:33.351516575-05:00"
+    },
+    "created_at": "2025-10-13T12:51:30.600633882-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 19,
+    "old_state": null,
+    "new_state": {
+      "id": 19,
+      "url": "https://leetcode.com/problems/merge-k-sorted-lists/",
+      "note": "merge by pairs or, group nodes by val, sort and build",
+      "familiarity": 3,
+      "importance": 3,
+      "last_reviewed": "2025-10-13T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-13T16:31:22.782349931-05:00",
+      "created_at": "2025-10-13T16:31:22.782350131-05:00"
+    },
+    "created_at": "2025-10-13T16:31:22.78238659-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 20,
+    "old_state": null,
+    "new_state": {
+      "id": 20,
+      "url": "https://leetcode.com/problems/quickSort/",
+      "note": "pick pivot, less than to the left, greater equal to the right and recursion",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-13T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-13T21:05:21.874310016-05:00",
+      "created_at": "2025-10-13T21:05:21.874310146-05:00"
+    },
+    "created_at": "2025-10-13T21:05:21.874357666-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 10,
+    "old_state": {
+      "id": 10,
+      "url": "https://leetcode.com/problems/number-of-students-unable-to-eat-lunch/",
+      "note": "have a counting variable to check if any student in the queue wants the top sandwich",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-09-28T00:00:00-05:00",
+      "next_review": "2025-10-13T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-09-28T15:43:43.555843409-05:00",
+      "created_at": "2025-09-28T15:43:43.555845784-05:00"
+    },
+    "new_state": {
+      "id": 10,
+      "url": "https://leetcode.com/problems/number-of-students-unable-to-eat-lunch/",
+      "note": "sandwiches need to be processed in order, that's why sometime the queue gets blocked",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-14T00:00:00-05:00",
+      "next_review": "2025-11-15T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.1799999999999997,
+      "updated_at": "2025-10-14T20:20:55.90330732-05:00",
+      "created_at": "2025-09-28T15:43:43.555845784-05:00"
+    },
+    "created_at": "2025-10-14T20:20:55.903365326-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 21,
+    "old_state": null,
+    "new_state": {
+      "id": 21,
+      "url": "https://leetcode.com/problems/top-k-frequent-elements/",
+      "note": "count and sort occurrences, get k most frequent",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-14T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-14T21:58:06.128936028-05:00",
+      "created_at": "2025-10-14T21:58:06.128936169-05:00"
+    },
+    "created_at": "2025-10-14T21:58:06.12898966-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 22,
+    "old_state": null,
+    "new_state": {
+      "id": 22,
+      "url": "https://leetcode.com/problems/longest-consecutive-sequence/",
+      "note": "consider the sequence only from the starting numbers; also do sorting approach",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-15T00:00:00-05:00",
+      "next_review": "2025-10-23T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-15T21:45:47.140739712-05:00",
+      "created_at": "2025-10-15T21:45:47.140739832-05:00"
+    },
+    "created_at": "2025-10-15T21:45:47.140823803-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 23,
+    "old_state": null,
+    "new_state": {
+      "id": 23,
+      "url": "https://leetcode.com/problems/string-encode-and-decode/",
+      "note": "encode in also the word legth",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-10-16T00:00:00-05:00",
+      "next_review": "2025-10-20T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-16T23:03:27.429956614-05:00",
+      "created_at": "2025-10-16T23:03:27.429956734-05:00"
+    },
+    "created_at": "2025-10-16T23:03:27.429996087-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 24,
+    "old_state": null,
+    "new_state": {
+      "id": 24,
+      "url": "https://leetcode.com/problems/valid-sudoku/",
+      "note": "build hash maps on the run, to avoid repeated checks for rows, cols and boxes",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-18T00:00:00-05:00",
+      "next_review": "2025-10-27T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-10-18T22:17:04.777106768-05:00",
+      "created_at": "2025-10-18T22:17:04.777106879-05:00"
+    },
+    "created_at": "2025-10-18T22:17:04.777154148-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 25,
+    "old_state": null,
+    "new_state": {
+      "id": 25,
+      "url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+      "note": "compute sum of two pointers, compare with the target and move them according it",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-19T00:00:00-05:00",
+      "next_review": "2025-10-25T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-19T23:59:06.305444549-05:00",
+      "created_at": "2025-10-19T23:59:06.305444659-05:00"
+    },
+    "created_at": "2025-10-19T23:59:06.30549245-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 26,
+    "old_state": null,
+    "new_state": {
+      "id": 26,
+      "url": "https://leetcode.com/problems/3sum/",
+      "note": "sort and move pointer finding prefect triplets; avoid duplicates",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-10-21T00:00:00-05:00",
+      "next_review": "2025-10-27T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-21T23:33:46.146833985-05:00",
+      "created_at": "2025-10-21T23:33:46.146834146-05:00"
+    },
+    "created_at": "2025-10-21T23:33:46.146876215-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 27,
+    "old_state": null,
+    "new_state": {
+      "id": 27,
+      "url": "https://leetcode.com/problems/evaluate-reverse-polish-notation/",
+      "note": "stack numbers and for each operand take out two numbers from it",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-23T00:00:00-05:00",
+      "next_review": "2025-10-31T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-23T07:29:38.998252903-05:00",
+      "created_at": "2025-10-23T07:29:38.998253053-05:00"
+    },
+    "created_at": "2025-10-23T07:29:38.998366047-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 23,
+    "old_state": {
+      "id": 23,
+      "url": "https://leetcode.com/problems/string-encode-and-decode/",
+      "note": "encode in also the word legth",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-10-16T00:00:00-05:00",
+      "next_review": "2025-10-20T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-16T23:03:27.429956614-05:00",
+      "created_at": "2025-10-16T23:03:27.429956734-05:00"
+    },
+    "new_state": {
+      "id": 23,
+      "url": "https://leetcode.com/problems/string-encode-and-decode/",
+      "note": "encode in also the word legth",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-10-25T00:00:00-05:00",
+      "next_review": "2025-11-02T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9000000000000001,
+      "updated_at": "2025-10-25T14:48:58.750750095-05:00",
+      "created_at": "2025-10-16T23:03:27.429956734-05:00"
+    },
+    "created_at": "2025-10-25T14:48:58.750765033-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 16,
+    "old_state": {
+      "id": 16,
+      "url": "https://leetcode.com/problems/lru-cache/",
+      "note": "multi data structure coordination",
+      "familiarity": 3,
+      "importance": 3,
+      "last_reviewed": "2025-10-09T00:00:00-05:00",
+      "next_review": "2025-10-17T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-09T07:20:12.072947068-05:00",
+      "created_at": "2025-10-09T07:20:12.072947178-05:00"
+    },
+    "new_state": {
+      "id": 16,
+      "url": "https://leetcode.com/problems/lru-cache/",
+      "note": "multi data structure coordination",
+      "familiarity": 4,
+      "importance": 3,
+      "last_reviewed": "2025-10-25T00:00:00-05:00",
+      "next_review": "2025-11-07T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.88,
+      "updated_at": "2025-10-25T15:25:29.232408036-05:00",
+      "created_at": "2025-10-09T07:20:12.072947178-05:00"
+    },
+    "created_at": "2025-10-25T15:25:29.233852754-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 17,
+    "old_state": {
+      "id": 17,
+      "url": "https://leetcode.com/problems/mergeSort/",
+      "note": "divide by half and merge recursively; implement both with slices and in-place",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-10-20T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-12T15:44:56.88105631-05:00",
+      "created_at": "2025-10-12T15:44:56.88105644-05:00"
+    },
+    "new_state": {
+      "id": 17,
+      "url": "https://leetcode.com/problems/mergeSort/",
+      "note": "divide by half and merge recursively; implement both with slices and in-place; cleaner with end exclusive",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-25T00:00:00-05:00",
+      "next_review": "2025-11-08T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.75,
+      "updated_at": "2025-10-25T18:38:40.512546899-05:00",
+      "created_at": "2025-10-12T15:44:56.88105644-05:00"
+    },
+    "created_at": "2025-10-25T18:38:40.512592816-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 20,
+    "old_state": {
+      "id": 20,
+      "url": "https://leetcode.com/problems/quickSort/",
+      "note": "pick pivot, less than to the left, greater equal to the right and recursion",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-13T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-13T21:05:21.874310016-05:00",
+      "created_at": "2025-10-13T21:05:21.874310146-05:00"
+    },
+    "new_state": {
+      "id": 20,
+      "url": "https://leetcode.com/problems/quickSort/",
+      "note": "pick pivot, less than to the left, greater equal to the right and recursion",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-10-25T00:00:00-05:00",
+      "next_review": "2025-11-08T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.6,
+      "updated_at": "2025-10-25T20:52:28.017087384-05:00",
+      "created_at": "2025-10-13T21:05:21.874310146-05:00"
+    },
+    "created_at": "2025-10-25T20:52:28.017161124-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 13,
+    "old_state": {
+      "id": 13,
+      "url": "https://leetcode.com/problems/sort-colors/",
+      "note": "bucket sort",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-03T00:00:00-05:00",
+      "next_review": "2025-10-16T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-10-03T20:46:23.834804594-05:00",
+      "created_at": "2025-10-03T20:46:23.834807388-05:00"
+    },
+    "new_state": {
+      "id": 13,
+      "url": "https://leetcode.com/problems/sort-colors/",
+      "note": "bucket sort; dutch national flag algo",
+      "familiarity": 2,
+      "importance": 0,
+      "last_reviewed": "2025-10-25T00:00:00-05:00",
+      "next_review": "2025-11-20T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.05,
+      "updated_at": "2025-10-25T22:51:10.414592571-05:00",
+      "created_at": "2025-10-03T20:46:23.834807388-05:00"
+    },
+    "created_at": "2025-10-25T22:51:10.414629431-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 7,
+    "old_state": {
+      "id": 7,
+      "url": "https://leetcode.com/problems/product-of-array-except-self/",
+      "note": "prefix and suffix product ignoring current element and multiply",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-05T00:00:00-05:00",
+      "next_review": "2025-10-20T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0799999999999996,
+      "updated_at": "2025-10-05T19:51:16.974888078-05:00",
+      "created_at": "2025-09-26T00:32:15.04337783-05:00"
+    },
+    "new_state": {
+      "id": 7,
+      "url": "https://leetcode.com/problems/product-of-array-except-self/",
+      "note": "prefix and suffix product ignoring current element and multiply",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-26T00:00:00-05:00",
+      "next_review": "2025-11-30T00:00:00-05:00",
+      "review_count": 3,
+      "ease_factor": 2.0099999999999993,
+      "updated_at": "2025-10-26T13:30:45.533353892-05:00",
+      "created_at": "2025-09-26T00:32:15.04337783-05:00"
+    },
+    "created_at": "2025-10-26T13:30:45.533383919-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 14,
+    "old_state": {
+      "id": 14,
+      "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
+      "note": "in-place removal",
+      "familiarity": 2,
+      "importance": 0,
+      "last_reviewed": "2025-10-05T00:00:00-05:00",
+      "next_review": "2025-10-16T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 2,
+      "updated_at": "2025-10-05T18:00:11.978745537-05:00",
+      "created_at": "2025-10-05T18:00:11.978747982-05:00"
+    },
+    "new_state": {
+      "id": 14,
+      "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
+      "note": "in-place removal; partitioning",
+      "familiarity": 4,
+      "importance": 1,
+      "last_reviewed": "2025-10-26T00:00:00-05:00",
+      "next_review": "2025-11-19T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.25,
+      "updated_at": "2025-10-26T14:06:45.532373944-05:00",
+      "created_at": "2025-10-05T18:00:11.978747982-05:00"
+    },
+    "created_at": "2025-10-26T14:06:45.532394773-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 18,
+    "old_state": {
+      "id": 18,
+      "url": "https://leetcode.com/problems/insertionSort/",
+      "note": "extract, compare and insert the current element on the sorted side",
+      "familiarity": 2,
+      "importance": 1,
+      "last_reviewed": "2025-10-12T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-10-12T19:18:47.17614152-05:00",
+      "created_at": "2025-10-12T19:18:47.1761416-05:00"
+    },
+    "new_state": {
+      "id": 18,
+      "url": "https://leetcode.com/problems/insertionSort/",
+      "note": "extract, compare and insert the current element on the sorted side",
+      "familiarity": 3,
+      "importance": 1,
+      "last_reviewed": "2025-10-27T00:00:00-05:00",
+      "next_review": "2025-11-12T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.05,
+      "updated_at": "2025-10-27T21:25:05.301906975-05:00",
+      "created_at": "2025-10-12T19:18:47.1761416-05:00"
+    },
+    "created_at": "2025-10-27T21:25:05.301955166-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 5,
+    "old_state": {
+      "id": 5,
+      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
+      "note": "new list, two pointer, add smaller, go one by one, add remaining",
+      "familiarity": 3,
+      "importance": 0,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-10-17T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 2.0999999999999996,
+      "updated_at": "2025-10-07T07:33:49.048135004-05:00",
+      "created_at": "2025-09-24T20:12:11.384344973-05:00"
+    },
+    "new_state": {
+      "id": 5,
+      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
+      "note": "new list, two pointer, add smaller, go one by one, add remaining",
+      "familiarity": 4,
+      "importance": 2,
+      "last_reviewed": "2025-10-27T00:00:00-05:00",
+      "next_review": "2025-11-19T00:00:00-05:00",
+      "review_count": 3,
+      "ease_factor": 2.3249999999999993,
+      "updated_at": "2025-10-27T21:48:23.52904036-05:00",
+      "created_at": "2025-09-24T20:12:11.384344973-05:00"
+    },
+    "created_at": "2025-10-27T21:48:23.529082196-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 29,
+    "old_state": null,
+    "new_state": {
+      "id": 29,
+      "url": "https://leetcode.com/problems/generate-parentheses/",
+      "note": "generate all posible combinations, save only valid ones; try backtracking solution",
+      "familiarity": 0,
+      "importance": 2,
+      "last_reviewed": "2025-10-28T00:00:00-05:00",
+      "next_review": "2025-11-03T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-28T01:35:58.522658453-05:00",
+      "created_at": "2025-10-28T01:35:58.522660758-05:00"
+    },
+    "created_at": "2025-10-28T01:35:58.522851219-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 30,
+    "old_state": null,
+    "new_state": {
+      "id": 30,
+      "url": "https://leetcode.com/problems/binary-search/",
+      "note": "take left and right pointer, calculate mid, compare and cut the search interval by half each time",
+      "familiarity": 3,
+      "importance": 3,
+      "last_reviewed": "2025-10-30T00:00:00-05:00",
+      "next_review": "2025-11-07T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-10-30T00:45:31.948051588-05:00",
+      "created_at": "2025-10-30T00:45:31.948051698-05:00"
+    },
+    "created_at": "2025-10-30T00:45:31.948095361-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 21,
+    "old_state": {
+      "id": 21,
+      "url": "https://leetcode.com/problems/top-k-frequent-elements/",
+      "note": "count and sort occurrences, get k most frequent",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-14T00:00:00-05:00",
+      "next_review": "2025-10-21T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-14T21:58:06.128936028-05:00",
+      "created_at": "2025-10-14T21:58:06.128936169-05:00"
+    },
+    "new_state": {
+      "id": 21,
+      "url": "https://leetcode.com/problems/top-k-frequent-elements/",
+      "note": "count and sort occurrences, get k most frequent",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-11-04T00:00:00-05:00",
+      "next_review": "2025-11-17T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9000000000000001,
+      "updated_at": "2025-11-04T06:10:45.918348186-05:00",
+      "created_at": "2025-10-14T21:58:06.128936169-05:00"
+    },
+    "created_at": "2025-11-04T06:10:45.918378413-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 8,
+    "old_state": {
+      "id": 8,
+      "url": "https://leetcode.com/problems/design-linked-list/",
+      "note": "use dummy node, check length on index based operations",
+      "familiarity": 1,
+      "importance": 1,
+      "last_reviewed": "2025-10-07T00:00:00-05:00",
+      "next_review": "2025-10-23T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.75,
+      "updated_at": "2025-10-07T06:32:00.154523661-05:00",
+      "created_at": "2025-09-27T22:20:35.155121421-05:00"
+    },
+    "new_state": {
+      "id": 8,
+      "url": "https://leetcode.com/problems/design-linked-list/",
+      "note": "use dummy node, check length/update tail on index based operations",
+      "familiarity": 1,
+      "importance": 1,
+      "last_reviewed": "2025-11-04T00:00:00-05:00",
+      "next_review": "2025-12-02T00:00:00-05:00",
+      "review_count": 3,
+      "ease_factor": 1.6,
+      "updated_at": "2025-11-04T07:23:35.105195199-05:00",
+      "created_at": "2025-09-27T22:20:35.155121421-05:00"
+    },
+    "created_at": "2025-11-04T07:23:35.105218593-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 31,
+    "old_state": null,
+    "new_state": {
+      "id": 31,
+      "url": "https://leetcode.com/problems/daily-temperatures/",
+      "note": "multiple temperatures can have the same greater/objective temperature, process them in the same operation",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-11-04T00:00:00-05:00",
+      "next_review": "2025-11-10T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-11-04T09:07:53.53924052-05:00",
+      "created_at": "2025-11-04T09:07:53.53924064-05:00"
+    },
+    "created_at": "2025-11-04T09:07:53.539289663-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 32,
+    "old_state": null,
+    "new_state": {
+      "id": 32,
+      "url": "https://leetcode.com/problems/car-fleet/",
+      "note": "sort cars and compute the steps remaining to get to the goal, group faster cars with slower ones",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-11-04T00:00:00-05:00",
+      "next_review": "2025-11-09T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-11-04T23:06:42.645254118-05:00",
+      "created_at": "2025-11-04T23:06:42.645254268-05:00"
+    },
+    "created_at": "2025-11-04T23:06:42.645317759-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 22,
+    "old_state": {
+      "id": 22,
+      "url": "https://leetcode.com/problems/longest-consecutive-sequence/",
+      "note": "consider the sequence only from the starting numbers; also do sorting approach",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-15T00:00:00-05:00",
+      "next_review": "2025-10-23T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-15T21:45:47.140739712-05:00",
+      "created_at": "2025-10-15T21:45:47.140739832-05:00"
+    },
+    "new_state": {
+      "id": 22,
+      "url": "https://leetcode.com/problems/longest-consecutive-sequence/",
+      "note": "consider the sequence only from the starting numbers; also do sorting approach",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-11-06T00:00:00-05:00",
+      "next_review": "2025-11-20T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9000000000000001,
+      "updated_at": "2025-11-06T22:14:37.917666597-05:00",
+      "created_at": "2025-10-15T21:45:47.140739832-05:00"
+    },
+    "created_at": "2025-11-06T22:14:37.917723449-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 25,
+    "old_state": {
+      "id": 25,
+      "url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+      "note": "compute sum of two pointers, compare with the target and move them according it",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-10-19T00:00:00-05:00",
+      "next_review": "2025-10-25T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-19T23:59:06.305444549-05:00",
+      "created_at": "2025-10-19T23:59:06.305444659-05:00"
+    },
+    "new_state": {
+      "id": 25,
+      "url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+      "note": "compute sum of two pointers, compare with the target and move them according it",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-11-06T00:00:00-05:00",
+      "next_review": "2025-11-17T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.9000000000000001,
+      "updated_at": "2025-11-06T22:42:34.810286484-05:00",
+      "created_at": "2025-10-19T23:59:06.305444659-05:00"
+    },
+    "created_at": "2025-11-06T22:42:34.810335094-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 34,
+    "old_state": null,
+    "new_state": {
+      "id": 34,
+      "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array-ii/",
+      "note": "two pointer keeping count for current item reset on new items",
+      "familiarity": 4,
+      "importance": 1,
+      "last_reviewed": "2025-11-07T00:00:00-05:00",
+      "next_review": "2025-11-22T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.9,
+      "updated_at": "2025-11-07T23:09:43.866901619-05:00",
+      "created_at": "2025-11-07T23:09:43.866901729-05:00"
+    },
+    "created_at": "2025-11-07T23:09:43.866944379-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 35,
+    "old_state": null,
+    "new_state": {
+      "id": 35,
+      "url": "https://leetcode.com/problems/container-with-most-water/",
+      "note": "calculate the area form edges to the middle moving the shorter poles to the maximize area",
+      "familiarity": 3,
+      "importance": 2,
+      "last_reviewed": "2025-11-08T00:00:00-05:00",
+      "next_review": "2025-11-18T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-11-08T20:29:34.863122725-05:00",
+      "created_at": "2025-11-08T20:29:34.863125519-05:00"
+    },
+    "created_at": "2025-11-08T20:29:34.863210377-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 36,
+    "old_state": null,
+    "new_state": {
+      "id": 36,
+      "url": "https://leetcode.com/problems/largest-rectangle-in-histogram/",
+      "note": "iter over histogram to get left and right edges of each possible rectangle then calculate their areas",
+      "familiarity": 0,
+      "importance": 3,
+      "last_reviewed": "2025-11-09T00:00:00-05:00",
+      "next_review": "2025-11-13T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.7,
+      "updated_at": "2025-11-09T03:33:34.790030057-05:00",
+      "created_at": "2025-11-09T03:33:34.790032851-05:00"
+    },
+    "created_at": "2025-11-09T03:33:34.790128046-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 37,
+    "old_state": null,
+    "new_state": {
+      "id": 37,
+      "url": "https://leetcode.com/problems/trapping-rain-water/",
+      "note": "get the largest left and right value for each position and compute how much water will that position have",
+      "familiarity": 0,
+      "importance": 2,
+      "last_reviewed": "2025-11-09T00:00:00-05:00",
+      "next_review": "2025-11-14T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-11-09T14:25:18.413482179-05:00",
+      "created_at": "2025-11-09T14:25:18.41348229-05:00"
+    },
+    "created_at": "2025-11-09T14:25:18.413565567-05:00"
+  },
+  {
+    "action": "add",
+    "question_id": 38,
+    "old_state": null,
+    "new_state": {
+      "id": 38,
+      "url": "https://leetcode.com/problems/search-a-2d-matrix/",
+      "note": "search for the correct row and then search on that row; edge cases when searching for the correct row",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-11-10T00:00:00-05:00",
+      "next_review": "2025-11-19T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-11-10T20:36:02.043418241-05:00",
+      "created_at": "2025-11-10T20:36:02.043418361-05:00"
+    },
+    "created_at": "2025-11-10T20:36:02.043486941-05:00"
   }
 ]
