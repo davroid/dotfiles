@@ -27,6 +27,7 @@ grim
 slurp
 satty
 ianny
+localsend
 
 brightnessctl
 pavucontrol

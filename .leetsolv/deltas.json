@@ -1,25 +1,6 @@
 [
   {
     "action": "add",
-    "question_id": 12,
-    "old_state": null,
-    "new_state": {
-      "id": 12,
-      "url": "https://leetcode.com/problems/climbing-stairs/",
-      "note": "fibonacci sequence relation",
-      "familiarity": 1,
-      "importance": 0,
-      "last_reviewed": "2025-09-30T00:00:00-05:00",
-      "next_review": "2025-10-09T00:00:00-05:00",
-      "review_count": 1,
-      "ease_factor": 2,
-      "updated_at": "2025-09-30T01:03:03.538678922-05:00",
-      "created_at": "2025-09-30T01:03:03.538681227-05:00"
-    },
-    "created_at": "2025-09-30T01:03:03.538738149-05:00"
-  },
-  {
-    "action": "add",
     "question_id": 13,
     "old_state": null,
     "new_state": {
@@ -1248,5 +1229,36 @@
       "created_at": "2025-11-10T20:36:02.043418361-05:00"
     },
     "created_at": "2025-11-10T20:36:02.043486941-05:00"
+  },
+  {
+    "action": "update",
+    "question_id": 26,
+    "old_state": {
+      "id": 26,
+      "url": "https://leetcode.com/problems/3sum/",
+      "note": "sort and move pointer finding prefect triplets; avoid duplicates",
+      "familiarity": 1,
+      "importance": 2,
+      "last_reviewed": "2025-10-21T00:00:00-05:00",
+      "next_review": "2025-10-27T00:00:00-05:00",
+      "review_count": 1,
+      "ease_factor": 1.8,
+      "updated_at": "2025-10-21T23:33:46.146833985-05:00",
+      "created_at": "2025-10-21T23:33:46.146834146-05:00"
+    },
+    "new_state": {
+      "id": 26,
+      "url": "https://leetcode.com/problems/3sum/",
+      "note": "sort and iterate over moving two pointers to find prefect triplets while avoiding duplicates",
+      "familiarity": 2,
+      "importance": 2,
+      "last_reviewed": "2025-11-15T00:00:00-05:00",
+      "next_review": "2025-11-27T00:00:00-05:00",
+      "review_count": 2,
+      "ease_factor": 1.73,
+      "updated_at": "2025-11-15T21:52:32.580671916-05:00",
+      "created_at": "2025-10-21T23:33:46.146834146-05:00"
+    },
+    "created_at": "2025-11-15T21:52:32.58070043-05:00"
   }
 ]
