@@ -112,6 +112,9 @@ autoload -Uz compinit && compinit
 
 PATH=$PATH:~/AppImages
 PATH=$PATH:~/.local/bin
+PATH=$PATH:~/go/bin
+PATH=$PATH:~/.bun/bin
+PATH=$PATH:~/.cargo/bin
 
 eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/daviddeadly.omp.json)"
 
