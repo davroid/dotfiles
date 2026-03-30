@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cSpell:ignore fuzzel iname dmenu wholename swww
+# cSpell:ignore fuzzel iname dmenu wholename awww
 
 dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 

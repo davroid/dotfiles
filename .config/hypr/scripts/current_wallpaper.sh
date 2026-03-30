@@ -1,4 +1,4 @@
 #!/bin/sh
-# cSpell:ignore swww
-swww query \
+# cSpell:ignore awww
+awww query \
     | awk -F'[: ]+' '/currently displaying/{print $NF}'
