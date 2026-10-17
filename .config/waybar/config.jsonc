@@ -63,8 +63,8 @@
     "show-special": true,
     "special-visible-only": true,
     "format-icons": {
-      "shell": "󰣇",
-      "web": "",
+      "1": "󰣇",
+      "2": "",
       "music": "",
       "notes": "󰽉",
       "default": ""

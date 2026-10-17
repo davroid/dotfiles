@@ -10,5 +10,5 @@ path = "~/images/wallpapers/"
 interval = 60
 extensions = ["jpg", "jpeg", "png"]
 recursive = true
-command = 'swww img "[file]"'
-clear_command = "swww clear"
+command = 'awww img "[file]"'
+clear_command = "awww clear"
