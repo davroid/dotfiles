@@ -48,14 +48,16 @@
 }
 
 /* VPN indicator (vpn-tray): orange = Cloudflare WARP, purple = Proton,
-   amber = no VPN, red = tunnel exists but traffic is not routed through it. */
+   amber = no VPN, red = tunnel exists but traffic is not routed through it.
+   It is the right half of the network pill: #network is rounded on the left,
+   this module closes the pill on the right. */
 #custom-vpn {
   background-color: rgba(15, 27, 53, 0.9);
   margin-top: 6px;
   margin-right: 6px;
-  margin-left: 6px;
-  padding: 4px 8px;
-  border-radius: 10px;
+  margin-left: 0;
+  padding: 4px 10px 4px 2px;
+  border-radius: 0 10px 10px 0;
   border-width: 0px;
 }
 
@@ -76,6 +78,13 @@
   margin-top: 6px;
   padding: 4px 2px;
   border-width: 0px;
+}
+
+/* The system pill: battery + volume + brightness + clock. #clock already
+   rounds the right end (rule above), this rounds the left end. The 6px gap to
+   the network pill comes from #custom-vpn's margin-right. */
+#battery {
+  border-radius: 10px 0 0 10px;
 }
 
 #custpm-temperature.critical,
