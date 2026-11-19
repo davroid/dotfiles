@@ -21,6 +21,11 @@
 #   at prio 32765 (`lookup 65743`) which is evaluated before the main table, so
 #   Proton's WireGuard default route would lose and its handshake packets would
 #   be pushed into the WARP tunnel.
+# * Mode is stored twice, because two different components act at boot:
+#   systemd unit enablement (WARP daemon/timer, Proton CLI daemon) and
+#   NetworkManager's connection.autoconnect for stored WireGuard profiles.
+#   Imported profiles are activated by NM itself, before systemd services, so
+#   leaving autoconnect=yes brings Proton up behind WARP and deadlocks both.
 # * "Disconnected" is not enough for WARP: warp-connect.timer re-asserts the
 #   connection every 60s. The units have to be disabled, not just stopped.
 # * Proton's CLI speaks D-Bus and keeps credentials in the *user* keyring, so
@@ -140,6 +145,55 @@ deactivate_wg() {
     fi
 }
 
+# All stored NetworkManager WireGuard connections (imported profiles, and
+# anything else that is not the CLI's transient proton0).
+wg_connections() {
+    nmcli -t -f NAME,TYPE connection show 2>/dev/null |
+        awk -F: '$2=="wireguard" {print $1}'
+}
+
+# Persist the boot choice where NetworkManager will see it. Enabling or
+# disabling systemd units is not enough: an imported WireGuard profile is
+# activated by NM at boot on its own, before WARP gets a chance to connect,
+# and then both tunnels fight over the routing (WARP's handshake is swallowed
+# by the profile's table and its firewall leaves the host offline).
+set_wg_autoconnect() { # set_wg_autoconnect yes|no [profile...]
+    local value=$1 name
+    shift
+    local names=()
+    if [ $# -gt 0 ]; then
+        names=("$@")
+    else
+        while IFS= read -r name; do
+            [ -n "$name" ] && names+=("$name")
+        done < <(wg_connections)
+    fi
+    if [ ${#names[@]} -eq 0 ]; then
+        info "no stored WireGuard profiles to update"
+        return 0
+    fi
+    for name in "${names[@]}"; do
+        [ -n "$name" ] || continue
+        if nmcli connection modify "$name" \
+            connection.autoconnect "$value" >/dev/null 2>&1; then
+            info "boot autoconnect=$value for '$name'"
+        else
+            warn "could not set autoconnect=$value for '$name'"
+        fi
+    done
+}
+
+wg_autoconnect_list() {
+    local name value out=
+    while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        value="$(nmcli -g connection.autoconnect connection show "$name" \
+            2>/dev/null)"
+        out+="${out:+, }$name=${value:-unknown}"
+    done < <(wg_connections)
+    printf '%s' "${out:-none}"
+}
+
 warp_rule_present() { ip rule show 2>/dev/null | grep -q "lookup $WARP_TABLE"; }
 
 # systemctl is-active/is-enabled print their answer and exit non-zero for
@@ -209,6 +263,10 @@ use_warp() {
             ok "proton daemon stopped and disabled"
         fi
     fi
+    # Persist WARP as the boot choice: without this, NetworkManager brings an
+    # imported Proton profile up on its own, before WARP can connect, and the
+    # two tunnels deadlock (WARP's firewall then leaves the host offline).
+    set_wg_autoconnect no
     # Also tear down an imported WireGuard profile, which the daemon never saw.
     deactivate_wg
     wait_until 10 "WireGuard tunnel down" no_wg_active || true
@@ -263,6 +321,10 @@ use_proton() {
             systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
         fi
         info "using NetworkManager profile '$profile'"
+        # Make this the only profile allowed to come up at boot, so a reboot
+        # lands in Proton mode instead of fighting WARP for the default route.
+        set_wg_autoconnect no
+        set_wg_autoconnect yes "$profile"
         if nmcli connection up "$profile" >/dev/null 2>&1; then
             ok "nmcli brought up '$profile'"
         else
@@ -273,6 +335,8 @@ use_proton() {
         info "no imported WireGuard profile: falling back to the Proton CLI"
         warn "proton-vpn-cli 1.1.0 can fail on NM 1.5x (kill-switch route bug);"
         warn "if it fails, import a WireGuard config from account.protonvpn.com (docs 10.3)"
+        # CLI connections are transient; no stored profile should race them.
+        set_wg_autoconnect no
         if systemctl enable --now proton.VPN.service >/dev/null 2>&1; then
             ok "proton.VPN.service enabled and started"
         else
@@ -334,6 +398,8 @@ use_none() {
         systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
         ok "proton daemon stopped and disabled"
     fi
+    # Nothing should come back on its own at the next boot.
+    set_wg_autoconnect no
     deactivate_wg
     wait_until 10 "WireGuard tunnel down" no_wg_active || true
 
@@ -375,6 +441,7 @@ show_status() {
     printf '   proton perm. KS   : %s\n' \
         "$(unit_field is-enabled proton-vpn-kill-switch-boot.service)"
     printf '   proton NM profile : %s\n' "$(or_none proton_nm_profile)"
+    printf '   WG autoconnect    : %s\n' "$(wg_autoconnect_list)"
     printf '   active WG device  : %s\n' "$(or_none wg_active_dev)"
 
     echo "interfaces and routes"

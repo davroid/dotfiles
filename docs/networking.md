@@ -482,14 +482,31 @@ therefore **disables** the units, not just stops them.
 
 | Mode | Actions |
 |---|---|
-| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; `nmcli connection down` any active WireGuard profile; wait for it to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
-| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); then bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing; verify with `ip route get 1.1.1.1` |
-| `none` | both of the above teardown halves, in order; verifies that no VPN route or policy rule remains |
-| `status` | units, interfaces, `ip rule`, default route, stored/active WireGuard profile, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
+| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; **set `connection.autoconnect no` on every stored WireGuard profile**; `nmcli connection down` any active one; wait for it to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
+| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); **set autoconnect `no` on all stored WireGuard profiles and `yes` on the chosen one**; bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing; verify with `ip route get 1.1.1.1` |
+| `none` | both of the above teardown halves, in order, including autoconnect `no`; verifies that no VPN route or policy rule remains |
+| `status` | units, interfaces, `ip rule`, default route, stored/active WireGuard profile, **stored autoconnect flags**, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
 
 Because the units are enabled/disabled, the choice **persists across
 reboots**: `switch-vpn proton` survives a restart, and `switch-vpn warp`
 turns Proton's autostart back off. `none` disables both.
+
+That is only half of the persistence. NetworkManager activates imported
+WireGuard profiles itself, before systemd services run, so each mode also
+writes `connection.autoconnect` on every stored WireGuard profile. Without
+this, a reboot selected WARP in systemd but NetworkManager auto-activated
+`proton-US` first (its flag was `yes`); WARP then could not establish:
+
+- WARP's handshake (fwmark `0x100cf`) hits Proton's `not fwmark 0xcab7 →
+  table 51895` rule first, because that rule has a lower priority number, so
+  the handshake is pushed into the Proton tunnel and never reaches Cloudflare.
+- `warp-connect.timer` retried every 60 s without success.
+- WARP's own firewall (`inet cloudflare-warp`) stayed in "catch-all Deny"
+  because the tunnel was not connected, so the host had **no internet** and
+  DNS failed until the profile was manually taken down.
+
+The fix is stored in the profiles, visible with
+`switch-vpn status` → `WG autoconnect : proton-US=no`.
 
 If WARP's `65743` rule is still present 15 s after disabling the units, the
 switcher **aborts** instead of starting Proton on top of it (a half-switched
@@ -635,6 +652,9 @@ keyring.
 | `switch-vpn proton` prints "timed out: tunnel up" | `switch-vpn status`; if `active WG device : none`, run `nmcli connection up <profile>` by hand to see NM's error. Check `journalctl -u NetworkManager -n 50`. |
 | `switch-vpn proton` used the CLI instead of my profile | `switch-vpn status` → `proton NM profile`. Name the connection with `proton` in it, or set `PROTON_CON=<name>`. |
 | New IP still looks like WARP after switching | `ip rule show \| grep 65743` — if present, `warp-svc` is still running; `sudo systemctl disable --now warp-svc` and re-run the switch. |
+| Reboots into the *other* VPN | `switch-vpn status` → `WG autoconnect`. In WARP mode every profile must say `no`; in Proton mode the chosen one must say `yes` and the WARP units must be disabled. Re-run `switch-vpn warp` (or `proton`) — it writes both the units and the autoconnect flags. |
+| Boots offline with WARP stuck at `Connecting` | Check `nmcli -t -f NAME,TYPE,DEVICE connection show --active` and `journalctl -b -u warp-svc \| grep -Ei 'Connecting\|NoConnections\|deny'`. Both tunnels are up: take the WireGuard profile down with `sudo switch-vpn warp`; the profile's `autoconnect` is the lasting fix. |
+| Boot helper never connects WARP | `systemctl list-timers warp-connect.timer` shows `LAST`; `warp-connect.service` is triggered by the timer even though it is `disabled` (oneshot, no `[Install]` start at boot). If `LAST` is far in the past, `sudo systemctl restart warp-connect.timer`. |
 | No internet after `switch-vpn none` | A leftover Proton dummy kill-switch connection: `nmcli -t -f NAME,TYPE connection show \| grep -i dummy`, then `protonvpn disconnect` (or re-run `switch-vpn none`). |
 | LAN discovery broken only under Proton | `ip route show 224.0.0.0/4` should name the LAN interface; re-add with `sudo ip route add 224.0.0.0/4 dev wlan0`. |
 | `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`, and also when using an imported profile (the CLI daemon is not needed). |
@@ -767,4 +787,17 @@ terminal.
   `PKEXEC_UID`. Verified all four states and the
   `warp -> proton -> none -> warp` menu flow against stubs, plus the live
   indicator on a real Proton tunnel.
+- 2026-11-19 — fixed the mode not surviving a reboot. `proton-US` had
+  `connection.autoconnect=yes`, so NetworkManager activated it ~5 s before
+  WARP on every boot (`policy: auto-activating connection 'proton-US'`).
+  WARP's fwmark handshake was then routed into Proton's table and could not
+  connect; `warp-connect.timer` retried every 60 s but WARP's own firewall
+  stayed in catch-all Deny, which is why the boot had no internet or DNS.
+  Confirmed on boots `16:05` and `16:27` (`proton-US` activated at 16:05:07 /
+  16:27:40, WARP only connected after the profile was manually taken down).
+  `switch-vpn` now writes `connection.autoconnect=no` to every stored
+  WireGuard profile in `warp`/`none` mode and `yes` to the chosen profile in
+  `proton` mode; `status` reports the stored flags. Verified by restarting
+  NetworkManager in both modes: WARP-only egress + DNS in WARP mode,
+  Proton-only in Proton mode, then restored WARP.
 
