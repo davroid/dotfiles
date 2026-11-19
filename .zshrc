@@ -189,3 +189,28 @@ esac
 autoload -U +X bashcompinit && bashcompinit
 complete -o nospace -C /usr/bin/terraform terraform
 
+source <(cliamp completion zsh)
+
+# opencode
+export PATH=/home/daviddeadly/.opencode/bin:$PATH
+
+# kasa: auto-inject TP-Link credentials from ~/.config/kasa/credentials.json
+# (creds are injected only when the user hasn't passed --username themselves)
+kasa() {
+  local credfile="$HOME/.config/kasa/credentials.json"
+  local -a args=("$@")
+  local i
+  for i in {1..$#args}; do
+    if [[ "${args[$i]}" == "--username" || "${args[$i]}" == "--password" ]]; then
+      command kasa "$@"  # explicit creds given, run as-is
+      return
+    fi
+  done
+  if [[ -r "$credfile" ]]; then
+    command kasa \
+      --username "$(jq -r .username "$credfile")" \
+      --password "$(jq -r .password "$credfile")" "$@"
+  else
+    command kasa "$@"
+  fi
+}
