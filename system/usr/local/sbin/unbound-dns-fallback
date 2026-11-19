@@ -1,0 +1,78 @@
+#!/bin/sh
+# unbound-dns-fallback - keep Unbound usable when DNS-over-TLS breaks.
+#
+# Normal state: 10-forward-dot.conf  (Cloudflare DoT, 1.1.1.1@853)
+# Fallback:     20-forward-plain.conf (Cloudflare plain, 1.1.1.1:53)
+#
+# Exactly one of the two may be active at a time. Two forward zones for "."
+# make Unbound silently ignore the second one, which would leave DNS in the
+# wrong mode without any error. Every switch is validated with
+# `unbound-checkconf` before `unbound-control reload`, and reverted if the
+# new config is rejected, so a mistake here cannot take DNS down.
+#
+# Driven by unbound-dns-fallback.timer (30s).
+set -u
+
+CONF_DIR=/etc/unbound/conf.d
+DOT="$CONF_DIR/10-forward-dot.conf"
+PLAIN="$CONF_DIR/20-forward-plain.conf"
+
+log() { logger -t unbound-fallback -- "$*"; }
+
+systemctl is-active --quiet unbound || exit 0
+
+# Nothing to do if the DoT definition itself is missing.
+if [ ! -f "$DOT" ] && [ ! -f "$DOT.disabled" ]; then
+    log "ERROR: $DOT and $DOT.disabled are both missing"
+    exit 1
+fi
+
+tls_ok() {
+    # NOTE: `openssl s_client -brief` writes its report to stderr, so the
+    # redirect must be 2>&1 *before* the pipe. Draining stderr made this
+    # probe return false forever, which latched the resolver into plaintext.
+    timeout 4 openssl s_client -connect 1.1.1.1:853 \
+        -servername cloudflare-dns.com -brief </dev/null 2>&1 \
+        | grep -q 'CONNECTION ESTABLISHED'
+}
+
+use_dot() {
+    [ -f "$DOT" ] && return 0
+    mv -f "$PLAIN" "$PLAIN.disabled" 2>/dev/null || true
+    mv -f "$DOT.disabled" "$DOT" 2>/dev/null || true
+    if unbound-checkconf >/dev/null 2>&1 && unbound-control reload >/dev/null 2>&1; then
+        log "DoT reachable again: forwarding to Cloudflare 1.1.1.1@853"
+        return 0
+    fi
+    mv -f "$DOT" "$DOT.disabled" 2>/dev/null || true
+    mv -f "$PLAIN.disabled" "$PLAIN" 2>/dev/null || true
+    log "ERROR: DoT config rejected, keeping plaintext fallback"
+    return 1
+}
+
+use_plain() {
+    [ -f "$PLAIN" ] && return 0
+    mv -f "$DOT" "$DOT.disabled" 2>/dev/null || true
+    mv -f "$PLAIN.disabled" "$PLAIN" 2>/dev/null || true
+    if unbound-checkconf >/dev/null 2>&1 && unbound-control reload >/dev/null 2>&1; then
+        log "WARNING: 1.1.1.1:853 unreachable, using plaintext Cloudflare DNS 1.1.1.1:53"
+        return 0
+    fi
+    mv -f "$PLAIN" "$PLAIN.disabled" 2>/dev/null || true
+    mv -f "$DOT.disabled" "$DOT" 2>/dev/null || true
+    log "ERROR: fallback config rejected, keeping DoT"
+    return 1
+}
+
+# Normalise a broken state where both definitions are active.
+if [ -f "$DOT" ] && [ -f "$PLAIN" ]; then
+    mv -f "$PLAIN" "$PLAIN.disabled"
+    unbound-checkconf >/dev/null 2>&1 && unbound-control reload >/dev/null 2>&1
+    log "WARNING: both forward zones were active, disabled the plaintext one"
+fi
+
+if tls_ok; then
+    use_dot
+else
+    use_plain
+fi

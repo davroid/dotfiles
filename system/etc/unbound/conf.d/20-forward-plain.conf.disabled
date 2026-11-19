@@ -1,0 +1,11 @@
+# Fallback upstream: plaintext Cloudflare DNS.
+#
+# Installed as .disabled. /usr/local/sbin/unbound-dns-fallback renames this
+# to 20-forward-plain.conf (and disables 10-forward-dot.conf) only when
+# 1.1.1.1:853 is unreachable, then reverts when DoT comes back.
+forward-zone:
+    name: "."
+    forward-first: no
+    forward-tls-upstream: no
+    forward-addr: 1.1.1.1
+    forward-addr: 1.0.0.1

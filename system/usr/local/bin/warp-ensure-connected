@@ -1,0 +1,23 @@
+#!/bin/sh
+# Ensure the Cloudflare WARP client maintains a connection.
+#
+# `warp-cli connect` sets the persistent "maintain a connection whenever
+# possible" state. The client still parks itself in Disconnected(Manual)
+# after early-boot network changes and after some resume/roam events, so
+# this is re-run from warp-connect.timer (60s) and at boot.
+set -u
+
+is_connected() {
+    warp-cli --accept-tos status 2>/dev/null | grep -q '^Status update: Connected'
+}
+
+is_connected && exit 0
+
+# One or more retries: at boot the daemon may still be bringing up its IPC.
+for _ in 1 2 3; do
+    warp-cli --accept-tos connect >/dev/null 2>&1 || true
+    sleep 5
+    is_connected && exit 0
+done
+
+exit 0

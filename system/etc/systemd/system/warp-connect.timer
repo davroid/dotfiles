@@ -1,0 +1,12 @@
+[Unit]
+Description=Re-assert the Cloudflare WARP connection periodically
+Documentation=file:///home/daviddeadly/dotfiles/docs/networking.md
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=warp-connect.service
+
+[Install]
+WantedBy=timers.target

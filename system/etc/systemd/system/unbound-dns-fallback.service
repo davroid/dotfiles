@@ -1,0 +1,9 @@
+[Unit]
+Description=Switch Unbound between DoT and plaintext Cloudflare DNS
+Documentation=file:///home/daviddeadly/dotfiles/docs/networking.md
+After=unbound.service
+Wants=unbound.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/unbound-dns-fallback

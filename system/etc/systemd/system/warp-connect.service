@@ -1,0 +1,12 @@
+[Unit]
+Description=Ensure the Cloudflare WARP tunnel is connected
+Documentation=file:///home/daviddeadly/dotfiles/docs/networking.md
+After=warp-svc.service NetworkManager-wait-online.service network-online.target
+Wants=warp-svc.service NetworkManager-wait-online.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/warp-ensure-connected
+
+[Install]
+WantedBy=multi-user.target
