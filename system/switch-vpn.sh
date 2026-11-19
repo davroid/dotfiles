@@ -2,10 +2,16 @@
 # switch-vpn.sh - choose the active VPN on davarch.
 #
 #   sudo ./switch-vpn.sh warp            # Cloudflare WARP, the default setup
-#   sudo ./switch-vpn.sh proton          # Proton VPN, fastest server
+#   sudo ./switch-vpn.sh proton          # Proton VPN
 #   sudo ./switch-vpn.sh proton --country US   # extra args go to `protonvpn connect`
 #   sudo ./switch-vpn.sh none            # no VPN (direct via the ISP, fail-open)
 #        ./switch-vpn.sh status          # read-only report, no root needed
+#
+# Proton uses an imported NetworkManager WireGuard profile if one exists
+# (recommended: proton-vpn-cli 1.1.0 has a kill-switch/NM routing bug, see
+# docs/networking.md 10.3). Import a config once with:
+#   nmcli connection import type wireguard file ~/Downloads/proton-XX.conf
+# Override the profile name with PROTON_CON=... if detection picks the wrong one.
 #
 # Installed as /usr/local/sbin/switch-vpn by install.sh.
 #
@@ -30,6 +36,7 @@ set -uo pipefail
 
 PROTON_BIN="$(command -v protonvpn 2>/dev/null || true)"
 [ -n "$PROTON_BIN" ] || PROTON_BIN=/sbin/protonvpn
+PROTON_CON="${PROTON_CON:-}"
 WARP_TABLE=65743
 WARP_IF=CloudflareWARP
 PROTON_IF=proton0
@@ -66,9 +73,50 @@ warp_connected() {
         grep -q '^Status update: Connected'
 }
 
+# Any active WireGuard link managed by NetworkManager: covers both the Proton
+# CLI (interface proton0) and an imported .conf profile (device name differs).
+wg_active_conn() {
+    nmcli -t -f NAME,TYPE connection show --active 2>/dev/null |
+        awk -F: '$2=="wireguard"{print $1; exit}'
+}
+
+wg_active_dev() {
+    nmcli -t -f NAME,TYPE,DEVICE connection show --active 2>/dev/null |
+        awk -F: '$2=="wireguard"{print $3; exit}'
+}
+
+no_wg_active() { [ -z "$(wg_active_dev)" ]; }
+
+# Stored WireGuard profile to use instead of the CLI. Prefers a profile whose
+# name contains "proton"; PROTON_CON overrides detection.
+proton_nm_profile() {
+    if [ -n "$PROTON_CON" ]; then printf '%s' "$PROTON_CON"; return 0; fi
+    local name
+    name="$(nmcli -t -f NAME,TYPE connection show 2>/dev/null |
+        awk -F: 'tolower($1) ~ /proton/ && $2=="wireguard" {print $1; exit}')"
+    if [ -z "$name" ]; then
+        name="$(nmcli -t -f NAME,TYPE connection show 2>/dev/null |
+            awk -F: '$2=="wireguard" {print $1; exit}')"
+    fi
+    printf '%s' "$name"
+}
+
 proton_connected() {
-    ip link show "$PROTON_IF" >/dev/null 2>&1 &&
-        ip -o route show dev "$PROTON_IF" 2>/dev/null | grep -q .
+    local dev
+    dev="$(wg_active_dev)"
+    [ -n "$dev" ] || return 1
+    ip -o route show default 2>/dev/null | grep -q "dev $dev"
+}
+
+deactivate_wg() {
+    local con
+    con="$(wg_active_conn)"
+    [ -n "$con" ] || return 0
+    if nmcli connection down "$con" >/dev/null 2>&1; then
+        info "deactivated WireGuard profile '$con'"
+    else
+        warn "could not deactivate WireGuard profile '$con'"
+    fi
 }
 
 warp_rule_present() { ip rule show 2>/dev/null | grep -q "lookup $WARP_TABLE"; }
@@ -77,6 +125,8 @@ warp_rule_present() { ip rule show 2>/dev/null | grep -q "lookup $WARP_TABLE"; }
 # inactive/disabled units; capture the text without duplicating it.
 unit_field() { local v; v="$(systemctl "$1" "$2" 2>/dev/null)"; printf '%s' "${v:-unknown}"; }
 unit_exists() { systemctl cat "$1" >/dev/null 2>&1; }
+
+or_none() { local v; v="$("$@")"; printf '%s' "${v:-none}"; }
 
 wait_until() { # wait_until <seconds> <description> <command...>
     local timeout=$1 desc=$2; shift 2
@@ -130,7 +180,7 @@ use_warp() {
             as_invoker "$PROTON_BIN" disconnect >/dev/null 2>&1 || true
         fi
         # Disable even when inactive: an enabled daemon would come back on
-        # reboot and could re-create its kill-switch connections.
+        # reboot and could re-create its kill-switch connections behind WARP.
         systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
         if systemctl is-active --quiet proton.VPN.service; then
             warn "proton daemon is still active"
@@ -138,10 +188,9 @@ use_warp() {
             ok "proton daemon stopped and disabled"
         fi
     fi
-    if ip link show "$PROTON_IF" >/dev/null 2>&1; then
-        wait_until 10 "$PROTON_IF removed" \
-            sh -c "! ip link show $PROTON_IF >/dev/null 2>&1" || true
-    fi
+    # Also tear down an imported WireGuard profile, which the daemon never saw.
+    deactivate_wg
+    wait_until 10 "WireGuard tunnel down" no_wg_active || true
 
     step "Enabling Cloudflare WARP"
     systemctl enable --now warp-svc.service >/dev/null 2>&1 || die "could not start warp-svc"
@@ -159,6 +208,15 @@ use_warp() {
 # mode: proton [connect args...]
 # ---------------------------------------------------------------------------
 use_proton() {
+    local profile
+    profile="$(proton_nm_profile)"
+
+    # Refuse before tearing WARP down if there is no way to bring Proton up.
+    if [ -z "$profile" ] && [ ! -x "$PROTON_BIN" ]; then
+        die "no Proton WireGuard profile and no protonvpn binary. Import one:
+       nmcli connection import type wireguard file ~/Downloads/proton-XX.conf"
+    fi
+
     step "Disabling Cloudflare WARP"
     systemctl disable --now warp-connect.timer >/dev/null 2>&1 || true
     systemctl stop warp-connect.service >/dev/null 2>&1 || true
@@ -177,32 +235,53 @@ use_proton() {
     fi
 
     step "Starting Proton VPN"
-    if systemctl enable --now proton.VPN.service >/dev/null 2>&1; then
-        ok "proton.VPN.service enabled and started"
-    else
-        warn "proton.VPN.service did not start; check journalctl -u proton.VPN.service"
-    fi
-    ensure_lan_multicast_route
-
-    if [ -z "${SUDO_USER:-}" ] || [ "$SUDO_USER" = root ]; then
-        warn "not invoked via sudo from a desktop session; run 'protonvpn connect' yourself"
-    elif [ ! -x "$PROTON_BIN" ]; then
-        warn "$PROTON_BIN not found; install proton-vpn-cli"
-    else
-        info "connecting as $SUDO_USER (credentials come from that user's keyring)"
-        if as_invoker "$PROTON_BIN" connect "$@"; then
-            ok "protonvpn connect returned"
+    if [ -n "$profile" ]; then
+        # NetworkManager path: no Proton daemon, no kill-switch dummy routes,
+        # no CLI reachability probe. This is the reliable path on NM 1.5x.
+        if unit_exists proton.VPN.service; then
+            systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
+        fi
+        info "using NetworkManager profile '$profile'"
+        if nmcli connection up "$profile" >/dev/null 2>&1; then
+            ok "nmcli brought up '$profile'"
         else
-            warn "protonvpn connect failed; if this is the first run, do 'protonvpn signin' as $SUDO_USER"
+            warn "nmcli connection up '$profile' failed; run it without --quiet for details"
+        fi
+        ensure_lan_multicast_route
+    else
+        info "no imported WireGuard profile: falling back to the Proton CLI"
+        warn "proton-vpn-cli 1.1.0 can fail on NM 1.5x (kill-switch route bug);"
+        warn "if it fails, import a WireGuard config from account.protonvpn.com (docs 10.3)"
+        if systemctl enable --now proton.VPN.service >/dev/null 2>&1; then
+            ok "proton.VPN.service enabled and started"
+        else
+            warn "proton.VPN.service did not start; check journalctl -u proton.VPN.service"
+        fi
+        ensure_lan_multicast_route
+
+        if [ -z "${SUDO_USER:-}" ] || [ "$SUDO_USER" = root ]; then
+            warn "not invoked via sudo from a desktop session; run 'protonvpn connect' yourself"
+        elif [ ! -x "$PROTON_BIN" ]; then
+            warn "$PROTON_BIN not found; install proton-vpn-cli"
+        else
+            info "connecting as $SUDO_USER (credentials come from that user's keyring)"
+            if as_invoker "$PROTON_BIN" connect "$@"; then
+                ok "protonvpn connect returned"
+            else
+                warn "protonvpn connect failed; if this is the first run, do 'protonvpn signin' as $SUDO_USER"
+            fi
         fi
     fi
 
     step "Verifying"
-    if wait_until 25 "$PROTON_IF up" proton_connected; then
-        ip -brief addr show "$PROTON_IF" 2>/dev/null | sed 's/^/   /'
+    if wait_until 25 "tunnel up" proton_connected; then
+        local dev
+        dev="$(wg_active_dev)"
+        ip -brief addr show "$dev" 2>/dev/null | sed 's/^/   /'
         ip route show default | sed 's/^/   /'
+        [ "$dev" = "$PROTON_IF" ] || info "interface: $dev (imported profile)"
     else
-        warn "no route via $PROTON_IF; the tunnel is not established"
+        warn "no default route via an active WireGuard interface; the tunnel is not established"
     fi
     trace
 }
@@ -232,10 +311,8 @@ use_none() {
         systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
         ok "proton daemon stopped and disabled"
     fi
-    if ip link show "$PROTON_IF" >/dev/null 2>&1; then
-        wait_until 10 "$PROTON_IF removed" \
-            sh -c "! ip link show $PROTON_IF >/dev/null 2>&1" || true
-    fi
+    deactivate_wg
+    wait_until 10 "WireGuard tunnel down" no_wg_active || true
 
     step "Verifying (fail-open, direct via the ISP)"
     ip route show default | sed 's/^/   /'
@@ -274,9 +351,11 @@ show_status() {
         "$(unit_field is-enabled proton.VPN.service)"
     printf '   proton perm. KS   : %s\n' \
         "$(unit_field is-enabled proton-vpn-kill-switch-boot.service)"
+    printf '   proton NM profile : %s\n' "$(or_none proton_nm_profile)"
+    printf '   active WG device  : %s\n' "$(or_none wg_active_dev)"
 
     echo "interfaces and routes"
-    ip -brief addr show 2>/dev/null | grep -E "^($WARP_IF|$PROTON_IF|wlan[0-9]|enp[0-9])" | sed 's/^/   /'
+    ip -brief addr show 2>/dev/null | grep -E "^($WARP_IF|$PROTON_IF|wlan[0-9]|enp[0-9]|proton)" | sed 's/^/   /'
     ip rule show 2>/dev/null | grep "lookup $WARP_TABLE" | sed 's/^/   /' || echo "   no WARP policy rule"
     ip route show default | sed 's/^/   /'
 
@@ -286,11 +365,17 @@ show_status() {
     fi
 
     echo "proton vpn"
-    if [ -x "$PROTON_BIN" ]; then
+    if systemctl is-active --quiet proton.VPN.service; then
         timeout 10 "$PROTON_BIN" status 2>/dev/null | grep -v -i eventlet |
             grep -v 'monkey_patched' | tail -2 | sed 's/^/   /'
     else
-        echo "   protonvpn not installed"
+        local dev
+        dev="$(wg_active_dev)"
+        if [ -n "$dev" ]; then
+            echo "   active via NetworkManager: $dev"
+        else
+            echo "   not connected (daemon disabled)"
+        fi
     fi
 
     echo "networkmanager"
@@ -308,7 +393,7 @@ mode="${1:-status}"
 case "$mode" in
     warp|proton|none|status) ;;
     -h|--help|help)
-        sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     *) die "unknown mode '$mode' (use: warp | proton | none | status)" ;;

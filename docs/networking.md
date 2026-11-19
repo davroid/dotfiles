@@ -474,10 +474,10 @@ therefore **disables** the units, not just stops them.
 
 | Mode | Actions |
 |---|---|
-| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; wait for `proton0` to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
-| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); enable+start `proton.VPN.service`; add `224.0.0.0/4 dev <lan>` if missing; `protonvpn connect` as `SUDO_USER` |
+| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; `nmcli connection down` any active WireGuard profile; wait for it to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
+| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); then bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing |
 | `none` | both of the above teardown halves, in order; verifies that no VPN route or policy rule remains |
-| `status` | units, interfaces, `ip rule`, default route, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
+| `status` | units, interfaces, `ip rule`, default route, stored/active WireGuard profile, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
 
 Because the units are enabled/disabled, the choice **persists across
 reboots**: `switch-vpn proton` survives a restart, and `switch-vpn warp`
@@ -488,25 +488,94 @@ switcher **aborts** instead of starting Proton on top of it (a half-switched
 host with working internet is better than a tunnel that cannot carry
 traffic). Re-run after fixing `warp-svc`.
 
-### 10.3 Proton CLI vs importing a WireGuard profile with `nmcli`
+### 10.3 Proton transport: use a NetworkManager WireGuard profile, not the CLI
 
-You already have `proton-vpn-cli`, so use it. It drives NetworkManager itself:
-connections are named `ProtonVPN <server>` with interface `proton0`, and
-server/city selection, protocol choice and kill switch are handled for you.
-Nothing else in this setup needs to change.
+`proton-vpn-cli 1.1.0.0` is broken on this machine's NetworkManager (1.58).
+Every connect attempt fails with:
 
-Importing a downloaded `.conf` with `nmcli connection import type wireguard`
-is the minimal alternative and works fine (just `nmcli con up/down`), but you
-lose server selection, kill switch and credential rotation, and you have to
-re-download profiles by hand. Only prefer it if you want zero Proton packages
-on the machine.
+```
+Error: Connection failed. Try connecting to a different server or check your network settings.
+```
+
+and the verbose log shows `VPN server NOT reachable` after exactly 5 s, while
+the server itself is up. The cause is in the CLI's kill-switch routing, not in
+this setup:
+
+1. To avoid leaks while connecting, the CLI always creates a dummy interface
+   (`pvpnksintrf0`) with `default via 100.85.0.1 metric 98`, which beats
+   Wi-Fi's default route (`metric 600`).
+2. It then tries to punch a hole by adding `84.20.27.34/32 via 192.168.1.1`
+   to the **active JARZ profile** and re-applying it.
+3. NetworkManager 1.58 accepts the profile change (`audit: op="connection-update"
+   … args="ipv4.routes" result="success"`) but never installs the route in the
+   kernel — `nmcli device show wlan0` lists only the LAN routes, and
+   `ip route` has no `/32`.
+4. The CLI's "is the server reachable" TCP probe therefore goes into the
+   dummy interface and times out, so it aborts before WireGuard is even
+   configured.
+
+Observed route timeline during a failed attempt:
+
+```
+23:17:57  default via 100.85.0.1 dev pvpnksintrf0 proto static metric 98
+          (no 84.20.27.34/32 route ever appears)
+23:18:02  pvpnksintrf0 removed after the probe timed out
+```
+
+**What works:** a WireGuard profile imported into NetworkManager. No dummy
+interface, no reachability probe, no per-connect NM profile mutation.
+
+```bash
+# one-time, as your normal user
+# account.protonvpn.com -> Downloads -> WireGuard configuration
+#   platform: GNU/Linux, pick a country/server, download the .conf
+nmcli connection import type wireguard file ~/Downloads/proton-US.conf
+nmcli -t -f NAME,TYPE connection show | grep wireguard   # note the name
+
+sudo switch-vpn proton
+```
+
+`switch-vpn` detects the profile (preferring names containing `proton`, else
+the first WireGuard profile) and activates it with `nmcli connection up`.
+Override the choice with `PROTON_CON=<name>` if you keep several profiles.
+
+Notes:
+
+- The imported config contains `DNS = 10.2.0.1`. With `dns=none`, NM does not
+  touch `/etc/resolv.conf`; Unbound keeps resolving. You can also clear it:
+  `nmcli connection modify <name> ipv4.dns "" ipv6.dns ""`.
+- `AllowedIPs = 0.0.0.0/0` makes the tunnel the default route; the connected
+  LAN subnet stays reachable because it is more specific. The switcher adds
+  `224.0.0.0/4 dev wlan0` for multicast discovery.
+- WireGuard configs are per-server: pick a nearby country for latency. Proton
+  rotates server IPs occasionally; regenerate the config from the dashboard
+  if a server disappears.
+- No kill switch in this path (fail-open, like WARP). If you want fail-closed,
+  import several profiles and enable Proton's permanent kill switch
+  explicitly: `sudo systemctl enable proton-vpn-kill-switch-boot.service`.
+
+The CLI remains as a fallback (`proton` mode uses it only when no WireGuard
+profile exists) and will start working again if a future release fixes the
+route installation. Keep it out of the critical path for now.
 
 ### 10.4 First-time Proton setup
 
 ```bash
-protonvpn signin          # as your normal user, once; stores the token in the keyring
-switch-vpn status         # confirm `protonvpn status` answers
+# 1. download a WireGuard config from account.protonvpn.com (Downloads)
+# 2. import it once, as your normal user:
+nmcli connection import type wireguard file ~/Downloads/proton-US.conf
+
+# 3. check detection and switch:
+switch-vpn status                  # "proton NM profile : proton-US"
 sudo switch-vpn proton
+sudo switch-vpn warp               # back to WARP
+```
+
+Using the CLI instead (currently affected by the bug above):
+
+```bash
+protonvpn signin                   # stores the token in your user keyring
+sudo switch-vpn proton             # falls back to the CLI if no .conf imported
 ```
 
 `switch-vpn proton` re-executes `protonvpn connect` as `SUDO_USER` with
@@ -514,13 +583,16 @@ sudo switch-vpn proton
 because the CLI talks D-Bus and reads the credentials from the **user**
 keyring. Run from a desktop session (a plain root shell cannot see that
 keyring); otherwise it prints the manual command instead of failing silently.
+The imported-profile path needs none of that: no sign-in, no daemon, no
+keyring.
 
 ### 10.5 Interaction with the rest of the setup
 
 - **DNS** — unchanged. Unbound keeps forwarding DoT to `1.1.1.1:853`
   *through whichever tunnel is up*. `dns=none` in NetworkManager stops the
-  Proton NM profile from replacing `/etc/resolv.conf`. If a future CLI version
-  starts managing DNS itself, check that `/etc/resolv.conf` still says
+  Proton NM profile from replacing `/etc/resolv.conf` (the imported config's
+  `DNS = 10.2.0.1` is therefore inert). If a future CLI version starts
+  managing DNS itself, check that `/etc/resolv.conf` still says
   `nameserver 127.0.0.1`.
 - **Firewall** — unchanged. Output is `accept`, so WireGuard/OpenVPN handshakes
   work; input stays default-deny, which also applies to `proton0`. Buying
@@ -545,12 +617,14 @@ keyring); otherwise it prints the manual command instead of failing silently.
 
 | Symptom | Check |
 |---|---|
+| `protonvpn connect` prints `VPN server NOT reachable` / `Connection failed` | Known CLI 1.1.0 + NM 1.58 kill-switch bug (§10.3). Use an imported WireGuard profile; a pre-added `/32` for the server or a newer CLI release are the only CLI-side workarounds. |
 | `protonvpn connect` says authentication required | Run `protonvpn signin` as your user, then retry. |
-| `switch-vpn proton` prints "timed out: `proton0` up" | `journalctl -u proton.VPN.service -n 50`; `nmcli -t -f NAME,TYPE,STATE connection show`; some Proton CLI versions need `proton-vpn-daemon` (pulled in automatically) and a working keyring. |
+| `switch-vpn proton` prints "timed out: tunnel up" | `switch-vpn status`; if `active WG device : none`, run `nmcli connection up <profile>` by hand to see NM's error. Check `journalctl -u NetworkManager -n 50`. |
+| `switch-vpn proton` used the CLI instead of my profile | `switch-vpn status` → `proton NM profile`. Name the connection with `proton` in it, or set `PROTON_CON=<name>`. |
 | New IP still looks like WARP after switching | `ip rule show \| grep 65743` — if present, `warp-svc` is still running; `sudo systemctl disable --now warp-svc` and re-run the switch. |
 | No internet after `switch-vpn none` | A leftover Proton dummy kill-switch connection: `nmcli -t -f NAME,TYPE connection show \| grep -i dummy`, then `protonvpn disconnect` (or re-run `switch-vpn none`). |
 | LAN discovery broken only under Proton | `ip route show 224.0.0.0/4` should name the LAN interface; re-add with `sudo ip route add 224.0.0.0/4 dev wlan0`. |
-| `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`; `switch-vpn proton` re-enables it. |
+| `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`, and also when using an imported profile (the CLI daemon is not needed). |
 
 ---
 
@@ -579,3 +653,11 @@ keyring); otherwise it prints the manual command instead of failing silently.
   switcher exists because WARP's `lookup 65743` policy rule outranks Proton's
   main-table default route and because `warp-connect.timer` would otherwise
   re-take the routing within 60 s.
+- 2026-11-18 — Proton CLI diagnosed and worked around. `protonvpn connect`
+  failed with `VPN server NOT reachable` after 5 s; the kill-switch dummy
+  device (`pvpnksintrf0`, `default metric 98`) hijacked the route, while the
+  `/32` exception NM was told to add to the `JARZ` profile was accepted by NM
+  1.58 but never installed in the kernel (confirmed via `ip route` and
+  `nmcli device show`). Added a NetworkManager-profile path to
+  `switch-vpn proton` (import a WireGuard config, `nmcli connection up`);
+  the CLI is now only a fallback. Docs §10.3 records the evidence.
