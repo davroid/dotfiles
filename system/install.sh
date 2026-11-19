@@ -135,7 +135,15 @@ systemctl restart nftables.service
 ok "nftables.service enabled and applied"
 
 # ---------------------------------------------------------------------------
-step "4. Verification"
+# step "4. VPN switcher"
+# ---------------------------------------------------------------------------
+install -m 0755 "$SRC/switch-vpn.sh" /usr/local/sbin/switch-vpn
+ok "installed /usr/local/sbin/switch-vpn (warp | proton | none | status)"
+command -v protonvpn >/dev/null \
+    || warn "protonvpn not installed; 'sudo switch-vpn proton' will not work yet"
+
+# ---------------------------------------------------------------------------
+step "5. Verification"
 # ---------------------------------------------------------------------------
 sleep 2
 echo "-- WARP --"
@@ -170,6 +178,7 @@ Rollback everything:
     sudo $SRC/rollback.sh
 
 Useful checks:
+    switch-vpn status
     warp-cli status
     ip rule; ip route show table 65743 | head
     resolvectl status 2>/dev/null || cat /etc/resolv.conf

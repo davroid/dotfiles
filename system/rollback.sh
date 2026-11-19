@@ -20,6 +20,9 @@ step "Stopping and removing timers"
 systemctl disable --now warp-connect.timer 2>/dev/null || true
 systemctl disable --now unbound-dns-fallback.timer 2>/dev/null || true
 
+step "Removing the VPN switcher"
+rm -f /usr/local/sbin/switch-vpn
+
 step "Removing WARP drop-in and helper units"
 rm -f /etc/systemd/system/warp-svc.service.d/10-network-order.conf
 rmdir /etc/systemd/system/warp-svc.service.d 2>/dev/null || true

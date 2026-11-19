@@ -1,6 +1,6 @@
 # Networking on `davarch`
 
-Status: applied 2026-11-18 on `davarch` (see §10 changelog). Apply (or
+Status: applied 2026-11-18 on `davarch` (see §11 changelog). Apply (or
 re-apply after edits) with `sudo ~/dotfiles/system/install.sh`; §7 lists the
 checks to run afterwards.
 The source of truth for replay lives in `system/` in this repo; this
@@ -87,6 +87,7 @@ explicit, verified plaintext path to `1.1.1.1`, activated only when
 | LAN exposure | LocalSend `53317` + mDNS `5353`, Syncthing `22000/21027` | those are the services actually used across devices |
 | bitcoind `8333` | **closed** | `~/.bitcoin/bitcoin.conf` has `onlynet=onion`, `proxy=127.0.0.1:9050`, `listenonion=1`; the node is Tor-only, the clearnet listener is dead weight |
 | WARP down behaviour | fail **open** | no kill switch: if the tunnel drops you keep internet; the timer reconnects within 60s. Chosen over fail-closed to avoid self-lockout. |
+| Alternate VPN | Proton VPN via the official CLI, mutually exclusive with WARP | the CLI drives NetworkManager (`proton0`) and keeps DNS untouched; WARP's `lookup 65743` rule outranks Proton's main-table default route, so a switcher disables one before enabling the other (§10) |
 | SSH | not opened | no `sshd` is listening; rule is commented in the firewall for later |
 
 ---
@@ -97,6 +98,7 @@ explicit, verified plaintext path to `1.1.1.1`, activated only when
 system/
 ├── install.sh                                  # idempotent installer (sudo)
 ├── rollback.sh                                 # undo everything (sudo)
+├── switch-vpn.sh                               # warp | proton | none | status
 ├── etc/
 │   ├── nftables.conf                           # host firewall
 │   ├── systemd/system/
@@ -125,6 +127,7 @@ Inventory installed on the live system:
 | `system/usr/local/sbin/unbound-dns-fallback` | same path (0755) |
 | `system/etc/systemd/system/unbound-dns-fallback.{service,timer}` | same path |
 | `system/etc/nftables.conf` | `/etc/nftables.conf` |
+| `system/switch-vpn.sh` | `/usr/local/sbin/switch-vpn` (0755) |
 
 `install.sh` also edits `/etc/unbound/unbound.conf` in place:
 
@@ -145,9 +148,14 @@ backed up as `<file>.bak.YYYYmmdd-HHMMSS`.
 sudo pacman -S --needed networkmanager unbound nftables openssl bind
 # WARP is AUR:
 yay -S cloudflare-warp-bin     # provides warp-svc + warp-cli
+# Optional, only for `switch-vpn proton`:
+sudo pacman -S --needed proton-vpn-cli
 ```
 
-`bind` is only needed for `dig` in the verification steps.
+`bind` is only needed for `dig` in the verification steps. `proton-vpn-cli`
+pulls in `proton-vpn-daemon`, `python-proton-*` and uses NetworkManager as its
+backend; no extra configuration is required for it to coexist with this setup
+(see §10).
 
 ### 5.2 Prerequisites / assumptions
 
@@ -177,7 +185,9 @@ What it does, in order:
    `unbound-checkconf`, reloads Unbound, enables the fallback timer;
 4. validates the firewall with `nft -c -f` **before** copying it, then
    installs and restarts `nftables.service`;
-5. prints verification output (WARP status, `ip rule`, exit IP, DNS answer,
+5. installs `switch-vpn` to `/usr/local/sbin/` (warns if `protonvpn` is
+   missing);
+6. prints verification output (WARP status, `ip rule`, exit IP, DNS answer,
    input chain, remaining listeners).
 
 ### 5.4 Rollback
@@ -187,9 +197,10 @@ cd ~/dotfiles/system
 sudo ./rollback.sh
 ```
 
-It disables the timers and `nftables.service`, removes the installed files,
-restores the newest `unbound.conf` / `nftables.conf` backup, flushes the
-ruleset and restarts `warp-svc`.
+It disables the timers and `nftables.service`, removes the installed files
+(including `/usr/local/sbin/switch-vpn`), restores the newest
+`unbound.conf` / `nftables.conf` backup, flushes the ruleset and restarts
+`warp-svc`. It never touches Proton VPN units or connections.
 
 ---
 
@@ -284,7 +295,7 @@ openssl s_client -connect 1.1.1.1:853 -servername cloudflare-dns.com \
 ```
 
 With `2>/dev/null` the probe returns false forever and the resolver gets
-latched onto plaintext. This bit us during the first apply (see §10).
+latched onto plaintext. This bit us during the first apply (see §11).
 
 `/etc/NetworkManager/NetworkManager.conf` already has `dns=none`, therefore
 NM never rewrites `/etc/resolv.conf` (`nameserver 127.0.0.1`). The DHCP
@@ -427,7 +438,123 @@ Small deviations from the original plan, all deliberate:
 
 ---
 
-## 10. Changelog
+## 10. Switching VPNs (WARP ↔ Proton)
+
+`system/switch-vpn.sh`, installed as `/usr/local/sbin/switch-vpn`, moves the
+host between Cloudflare WARP, Proton VPN and no VPN. DNS, the nftables
+firewall and the LAN rules are independent of the choice and are never
+rewritten by it.
+
+```bash
+switch-vpn status                  # read-only, no root needed
+sudo switch-vpn warp               # Cloudflare WARP (this document's default)
+sudo switch-vpn proton             # Proton VPN, fastest server
+sudo switch-vpn proton --country US    # args pass through to `protonvpn connect`
+sudo switch-vpn none               # direct via the ISP
+```
+
+### 10.1 Why they cannot both be up
+
+WARP installs
+
+```
+32765:  not from all fwmark 0x100cf lookup 65743
+```
+
+Policy rules are consulted before the `main` table. Proton's WireGuard
+connection only installs a default route **in `main`**, so with both active the
+Proton handshake packets would be looked up in table `65743` and pushed into
+the WARP tunnel — nested tunnels, or no handshake at all.
+
+`warp-cli disconnect` alone is not enough either: `warp-connect.timer`
+re-asserts the connection within 60 s and takes the routing back. The switcher
+therefore **disables** the units, not just stops them.
+
+### 10.2 What each mode does
+
+| Mode | Actions |
+|---|---|
+| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; wait for `proton0` to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
+| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); enable+start `proton.VPN.service`; add `224.0.0.0/4 dev <lan>` if missing; `protonvpn connect` as `SUDO_USER` |
+| `none` | both of the above teardown halves, in order; verifies that no VPN route or policy rule remains |
+| `status` | units, interfaces, `ip rule`, default route, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
+
+Because the units are enabled/disabled, the choice **persists across
+reboots**: `switch-vpn proton` survives a restart, and `switch-vpn warp`
+turns Proton's autostart back off. `none` disables both.
+
+If WARP's `65743` rule is still present 15 s after disabling the units, the
+switcher **aborts** instead of starting Proton on top of it (a half-switched
+host with working internet is better than a tunnel that cannot carry
+traffic). Re-run after fixing `warp-svc`.
+
+### 10.3 Proton CLI vs importing a WireGuard profile with `nmcli`
+
+You already have `proton-vpn-cli`, so use it. It drives NetworkManager itself:
+connections are named `ProtonVPN <server>` with interface `proton0`, and
+server/city selection, protocol choice and kill switch are handled for you.
+Nothing else in this setup needs to change.
+
+Importing a downloaded `.conf` with `nmcli connection import type wireguard`
+is the minimal alternative and works fine (just `nmcli con up/down`), but you
+lose server selection, kill switch and credential rotation, and you have to
+re-download profiles by hand. Only prefer it if you want zero Proton packages
+on the machine.
+
+### 10.4 First-time Proton setup
+
+```bash
+protonvpn signin          # as your normal user, once; stores the token in the keyring
+switch-vpn status         # confirm `protonvpn status` answers
+sudo switch-vpn proton
+```
+
+`switch-vpn proton` re-executes `protonvpn connect` as `SUDO_USER` with
+`XDG_RUNTIME_DIR`/`DBUS_SESSION_BUS_ADDRESS` pointing at that user's session,
+because the CLI talks D-Bus and reads the credentials from the **user**
+keyring. Run from a desktop session (a plain root shell cannot see that
+keyring); otherwise it prints the manual command instead of failing silently.
+
+### 10.5 Interaction with the rest of the setup
+
+- **DNS** — unchanged. Unbound keeps forwarding DoT to `1.1.1.1:853`
+  *through whichever tunnel is up*. `dns=none` in NetworkManager stops the
+  Proton NM profile from replacing `/etc/resolv.conf`. If a future CLI version
+  starts managing DNS itself, check that `/etc/resolv.conf` still says
+  `nameserver 127.0.0.1`.
+- **Firewall** — unchanged. Output is `accept`, so WireGuard/OpenVPN handshakes
+  work; input stays default-deny, which also applies to `proton0`. Buying
+  Proton's port-forwarding add-on would need one explicit accept on that
+  interface.
+- **Kill switch** — Proton implements it with NetworkManager dummy
+  connections (route metrics), **not** nftables, so `inet filter` is never
+  modified. Its "permanent" variant is stored as the enablement of
+  `proton-vpn-kill-switch-boot.service`; switching away disables that unit, so
+  a stale fail-closed state cannot block the next mode. Re-enable it
+  deliberately with `sudo systemctl enable proton-vpn-kill-switch-boot.service`
+  if you want Proton to fail closed.
+- **LAN discovery** — Proton's config uses `AllowedIPs = 0.0.0.0/0`. The
+  connected `192.168.1.0/24` route is more specific than `/0`, so transfers
+  keep working, but multicast has no such route and would follow the tunnel.
+  `switch-vpn proton` therefore adds `224.0.0.0/4 dev <lan-iface>` (runtime
+  only) so LocalSend/Syncthing discovery keeps working.
+- **`bitcoind`/Tor** — unaffected: loopback and Tor's own outbound traffic go
+  through the active tunnel like any other output.
+
+### 10.6 Troubleshooting the switch
+
+| Symptom | Check |
+|---|---|
+| `protonvpn connect` says authentication required | Run `protonvpn signin` as your user, then retry. |
+| `switch-vpn proton` prints "timed out: `proton0` up" | `journalctl -u proton.VPN.service -n 50`; `nmcli -t -f NAME,TYPE,STATE connection show`; some Proton CLI versions need `proton-vpn-daemon` (pulled in automatically) and a working keyring. |
+| New IP still looks like WARP after switching | `ip rule show \| grep 65743` — if present, `warp-svc` is still running; `sudo systemctl disable --now warp-svc` and re-run the switch. |
+| No internet after `switch-vpn none` | A leftover Proton dummy kill-switch connection: `nmcli -t -f NAME,TYPE connection show \| grep -i dummy`, then `protonvpn disconnect` (or re-run `switch-vpn none`). |
+| LAN discovery broken only under Proton | `ip route show 224.0.0.0/4` should name the LAN interface; re-add with `sudo ip route add 224.0.0.0/4 dev wlan0`. |
+| `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`; `switch-vpn proton` re-enables it. |
+
+---
+
+## 11. Changelog
 
 - 2026-11-18 — initial implementation:
   WARP boot ordering + reconnect timer; Unbound drop-in architecture with
@@ -443,3 +570,12 @@ Small deviations from the original plan, all deliberate:
   (md5), both timers active. `nftables` input chain is `policy drop`; WARP
   owns a separate `inet cloudflare-warp` table that leaves `inet filter`
   untouched. LocalSend/Syncthing/bitcoind unaffected.
+- 2026-11-18 — added `system/switch-vpn.sh` (installed as
+  `/usr/local/sbin/switch-vpn`) to move between WARP, Proton VPN and no VPN.
+  Verified `status`, `--help`, argument validation, the non-root guard, and
+  the full `warp -> proton -> none -> warp` transition against stubbed
+  `systemctl`/`ip`/`warp-cli`/`protonvpn`, including the abort path for a
+  stuck WARP rule. The real tunnel was not switched in this session. The
+  switcher exists because WARP's `lookup 65743` policy rule outranks Proton's
+  main-table default route and because `warp-connect.timer` would otherwise
+  re-take the routing within 60 s.
