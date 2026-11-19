@@ -24,8 +24,9 @@
 # * "Disconnected" is not enough for WARP: warp-connect.timer re-asserts the
 #   connection every 60s. The units have to be disabled, not just stopped.
 # * Proton's CLI speaks D-Bus and keeps credentials in the *user* keyring, so
-#   `protonvpn connect` is re-executed as SUDO_USER with that user's session
-#   bus, and only after the system units are in the right state.
+#   `protonvpn connect` is re-executed as the invoking user (sudo or pkexec)
+#   with that user's session bus, and only after the system units are in the
+#   right state.
 # * Proton's kill switch is implemented as NetworkManager dummy connections
 #   (route metrics), not nftables, so `inet filter` is never touched. Its
 #   "permanent" mode is stored as enablement of
@@ -51,14 +52,31 @@ die()  { printf '\033[31merror\033[0m %s\n' "$*" >&2; exit 1; }
 # helpers
 # ---------------------------------------------------------------------------
 
-# Run a command as the user who invoked sudo, with a working session bus so the
-# Proton CLI can reach the keyring. Falls back to plain execution if not sudo.
-as_invoker() {
+# User who invoked us through sudo or pkexec. Their keyring holds the Proton
+# credentials, and their session bus is what the CLI talks to.
+invoker_user() {
+    local name
     if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ]; then
-        local uid home
-        uid="$(id -u "$SUDO_USER")"
-        home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-        sudo -u "$SUDO_USER" env \
+        printf '%s' "$SUDO_USER"
+        return 0
+    fi
+    if [ -n "${PKEXEC_UID:-}" ] && [ "$PKEXEC_UID" != 0 ]; then
+        name="$(getent passwd "$PKEXEC_UID" | cut -d: -f1)"
+        [ -n "$name" ] || return 1
+        printf '%s' "$name"
+        return 0
+    fi
+    return 1
+}
+
+# Run a command as the invoking user, with a working session bus so the Proton
+# CLI can reach the keyring. Falls back to plain execution when not elevated.
+as_invoker() {
+    local user uid home
+    if user="$(invoker_user)" && [ -n "$user" ]; then
+        uid="$(id -u "$user")"
+        home="$(getent passwd "$user" | cut -d: -f6)"
+        sudo -u "$user" env \
             HOME="$home" \
             XDG_RUNTIME_DIR="/run/user/$uid" \
             DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -105,7 +123,10 @@ proton_connected() {
     local dev
     dev="$(wg_active_dev)"
     [ -n "$dev" ] || return 1
-    ip -o route show default 2>/dev/null | grep -q "dev $dev"
+    # Ask the kernel: profiles imported from Proton route with a fwmark and
+    # their own table, so `main` can still show Wi-Fi as the default route
+    # while the tunnel carries the traffic.
+    ip route get 1.1.1.1 2>/dev/null | grep -q " dev $dev"
 }
 
 deactivate_wg() {
@@ -259,16 +280,18 @@ use_proton() {
         fi
         ensure_lan_multicast_route
 
-        if [ -z "${SUDO_USER:-}" ] || [ "$SUDO_USER" = root ]; then
-            warn "not invoked via sudo from a desktop session; run 'protonvpn connect' yourself"
+        local invoker
+        invoker="$(invoker_user)"
+        if [ -z "$invoker" ]; then
+            warn "not invoked via sudo/pkexec from a desktop session; run 'protonvpn connect' yourself"
         elif [ ! -x "$PROTON_BIN" ]; then
             warn "$PROTON_BIN not found; install proton-vpn-cli"
         else
-            info "connecting as $SUDO_USER (credentials come from that user's keyring)"
+            info "connecting as $invoker (credentials come from that user's keyring)"
             if as_invoker "$PROTON_BIN" connect "$@"; then
                 ok "protonvpn connect returned"
             else
-                warn "protonvpn connect failed; if this is the first run, do 'protonvpn signin' as $SUDO_USER"
+                warn "protonvpn connect failed; if this is the first run, do 'protonvpn signin' as $invoker"
             fi
         fi
     fi
@@ -278,10 +301,10 @@ use_proton() {
         local dev
         dev="$(wg_active_dev)"
         ip -brief addr show "$dev" 2>/dev/null | sed 's/^/   /'
-        ip route show default | sed 's/^/   /'
+        ip route get 1.1.1.1 2>/dev/null | head -1 | sed 's/^/   /'
         [ "$dev" = "$PROTON_IF" ] || info "interface: $dev (imported profile)"
     else
-        warn "no default route via an active WireGuard interface; the tunnel is not established"
+        warn "traffic is not routed through an active WireGuard interface; the tunnel is not established"
     fi
     trace
 }
@@ -358,6 +381,7 @@ show_status() {
     ip -brief addr show 2>/dev/null | grep -E "^($WARP_IF|$PROTON_IF|wlan[0-9]|enp[0-9]|proton)" | sed 's/^/   /'
     ip rule show 2>/dev/null | grep "lookup $WARP_TABLE" | sed 's/^/   /' || echo "   no WARP policy rule"
     ip route show default | sed 's/^/   /'
+    ip route get 1.1.1.1 2>/dev/null | head -1 | sed 's/^/   egress: /'
 
     if systemctl is-active --quiet warp-svc.service; then
         echo "cloudflare warp"

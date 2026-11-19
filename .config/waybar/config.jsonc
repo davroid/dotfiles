@@ -15,6 +15,7 @@
   "modules-right": [
     "hyprland/submap",
     "network",
+    "custom/vpn",
     "battery",
     "pulseaudio",
     "backlight",
@@ -96,6 +97,17 @@
     "format-linked": "<span color='#FFA500'> 󱘖 </span>{ifname} (No IP) ",
     "format-disconnected": "<span color='#FF4040'>  </span> Disconnected ",
     "interval": 1
+  },
+  // VPN indicator: output is JSON from /usr/local/bin/vpn-tray
+  // (class warp|proton|direct, plus "warn" when traffic is not routed).
+  // Click opens a fuzzel menu to switch VPN.
+  "custom/vpn": {
+    "exec": "vpn-tray status",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 8,
+    "on-click": "vpn-tray menu",
+    "tooltip": true
   },
   "battery": {
     "interval": 1,

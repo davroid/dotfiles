@@ -139,6 +139,8 @@ ok "nftables.service enabled and applied"
 # ---------------------------------------------------------------------------
 install -m 0755 "$SRC/switch-vpn.sh" /usr/local/sbin/switch-vpn
 ok "installed /usr/local/sbin/switch-vpn (warp | proton | none | status)"
+install -m 0755 "$SRC/vpn-tray.sh" /usr/local/bin/vpn-tray
+ok "installed /usr/local/bin/vpn-tray (Waybar indicator + fuzzel menu)"
 command -v protonvpn >/dev/null \
     || warn "protonvpn not installed; 'sudo switch-vpn proton' will not work yet"
 

@@ -47,6 +47,23 @@
   border-width: 0px;
 }
 
+/* VPN indicator (vpn-tray): orange = Cloudflare WARP, purple = Proton,
+   amber = no VPN, red = tunnel exists but traffic is not routed through it. */
+#custom-vpn {
+  background-color: rgba(15, 27, 53, 0.9);
+  margin-top: 6px;
+  margin-right: 6px;
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border-width: 0px;
+}
+
+#custom-vpn.warp   { color: #F6821F; }
+#custom-vpn.proton { color: #A78BFA; }
+#custom-vpn.direct { color: #FFB020; }
+#custom-vpn.warn   { color: #FF4040; }
+
 #custom-reboot,
 #bluetooth,
 #battery,
@@ -69,6 +86,7 @@
 
 #bluetooth:hover,
 #network:hover,
+#custom-vpn:hover,
 #backlight:hover,
 #battery:hover,
 #pulseaudio:hover,

@@ -22,6 +22,7 @@ systemctl disable --now unbound-dns-fallback.timer 2>/dev/null || true
 
 step "Removing the VPN switcher"
 rm -f /usr/local/sbin/switch-vpn
+rm -f /usr/local/bin/vpn-tray
 
 step "Removing WARP drop-in and helper units"
 rm -f /etc/systemd/system/warp-svc.service.d/10-network-order.conf

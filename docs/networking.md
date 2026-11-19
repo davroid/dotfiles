@@ -99,6 +99,7 @@ system/
 ├── install.sh                                  # idempotent installer (sudo)
 ├── rollback.sh                                 # undo everything (sudo)
 ├── switch-vpn.sh                               # warp | proton | none | status
+├── vpn-tray.sh                                 # Waybar indicator + fuzzel menu
 ├── etc/
 │   ├── nftables.conf                           # host firewall
 │   ├── systemd/system/
@@ -128,6 +129,12 @@ Inventory installed on the live system:
 | `system/etc/systemd/system/unbound-dns-fallback.{service,timer}` | same path |
 | `system/etc/nftables.conf` | `/etc/nftables.conf` |
 | `system/switch-vpn.sh` | `/usr/local/sbin/switch-vpn` (0755) |
+| `system/vpn-tray.sh` | `/usr/local/bin/vpn-tray` (0755) |
+
+The bar itself is configured outside `system/`, through the existing dotfiles:
+`.config/waybar/config.jsonc` (`custom/vpn` module) and
+`.config/waybar/style.css` (colours per state). Both are user files, not
+installed by `install.sh`.
 
 `install.sh` also edits `/etc/unbound/unbound.conf` in place:
 
@@ -185,8 +192,8 @@ What it does, in order:
    `unbound-checkconf`, reloads Unbound, enables the fallback timer;
 4. validates the firewall with `nft -c -f` **before** copying it, then
    installs and restarts `nftables.service`;
-5. installs `switch-vpn` to `/usr/local/sbin/` (warns if `protonvpn` is
-   missing);
+5. installs `switch-vpn` to `/usr/local/sbin/` and `vpn-tray` to
+   `/usr/local/bin/` (warns if `protonvpn` is missing);
 6. prints verification output (WARP status, `ip rule`, exit IP, DNS answer,
    input chain, remaining listeners).
 
@@ -198,9 +205,10 @@ sudo ./rollback.sh
 ```
 
 It disables the timers and `nftables.service`, removes the installed files
-(including `/usr/local/sbin/switch-vpn`), restores the newest
-`unbound.conf` / `nftables.conf` backup, flushes the ruleset and restarts
-`warp-svc`. It never touches Proton VPN units or connections.
+(including `/usr/local/sbin/switch-vpn` and `/usr/local/bin/vpn-tray`),
+restores the newest `unbound.conf` / `nftables.conf` backup, flushes the
+ruleset and restarts `warp-svc`. It never touches Proton VPN units or
+connections.
 
 ---
 
@@ -475,7 +483,7 @@ therefore **disables** the units, not just stops them.
 | Mode | Actions |
 |---|---|
 | `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; `nmcli connection down` any active WireGuard profile; wait for it to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
-| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); then bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing |
+| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); then bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing; verify with `ip route get 1.1.1.1` |
 | `none` | both of the above teardown halves, in order; verifies that no VPN route or policy rule remains |
 | `status` | units, interfaces, `ip rule`, default route, stored/active WireGuard profile, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
 
@@ -547,6 +555,10 @@ Notes:
 - `AllowedIPs = 0.0.0.0/0` makes the tunnel the default route; the connected
   LAN subnet stays reachable because it is more specific. The switcher adds
   `224.0.0.0/4 dev wlan0` for multicast discovery.
+- Proton's config installs policy routing (`fwmark` + its own table), so
+  `ip route show default` still names Wi-Fi while the tunnel carries traffic.
+  Verify with `ip route get 1.1.1.1` instead; `switch-vpn` and `vpn-tray` both
+  do, and this is why a pure main-table check reports a false negative.
 - WireGuard configs are per-server: pick a nearby country for latency. Proton
   rotates server IPs occasionally; regenerate the config from the dashboard
   if a server disappears.
@@ -578,7 +590,8 @@ protonvpn signin                   # stores the token in your user keyring
 sudo switch-vpn proton             # falls back to the CLI if no .conf imported
 ```
 
-`switch-vpn proton` re-executes `protonvpn connect` as `SUDO_USER` with
+`switch-vpn proton` re-executes `protonvpn connect` as the invoking user
+(`SUDO_USER` or `PKEXEC_UID`) with
 `XDG_RUNTIME_DIR`/`DBUS_SESSION_BUS_ADDRESS` pointing at that user's session,
 because the CLI talks D-Bus and reads the credentials from the **user**
 keyring. Run from a desktop session (a plain root shell cannot see that
@@ -626,6 +639,88 @@ keyring.
 | LAN discovery broken only under Proton | `ip route show 224.0.0.0/4` should name the LAN interface; re-add with `sudo ip route add 224.0.0.0/4 dev wlan0`. |
 | `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`, and also when using an imported profile (the CLI daemon is not needed). |
 
+### 10.7 Bar indicator and one-click switching — `vpn-tray`
+
+`vpn-tray` (installed to `/usr/local/bin`) renders the current VPN in Waybar
+and opens a fuzzel menu when clicked. It reads state as your normal user and
+delegates the actual switch to `switch-vpn` as root.
+
+| State | Bar | Colour | Waybar class | Tooltip |
+|---|---|---|---|---|
+| Cloudflare WARP | ` WARP` | Cloudflare orange | `warp` | interface + "routed through the tunnel" |
+| Proton VPN | ` PROTON` | purple | `proton` | profile/interface + routing state |
+| No VPN | ` DIRECT` | amber | `direct` | notes if WARP is enabled-but-down or a Proton profile is merely imported |
+| Tunnel up, not routed | same label, red | red | `<state> warn` | "NOT routed through the tunnel" and the reason |
+
+Glyphs are Font Awesome from CaskaydiaCove Nerd Font (`fa-cloud`,
+`fa-shield`, `fa-globe`).
+
+How it decides:
+
+1. `CloudflareWARP` exists **and** `ip rule` has `lookup 65743` → WARP.
+2. otherwise an active NetworkManager `wireguard` connection → Proton
+   (`proton0` from the CLI or an imported profile).
+3. otherwise direct.
+4. Routing is confirmed with `ip route get 1.1.1.1`, not
+   `ip route show default`: imported Proton configs use a `fwmark` and their
+   own table, so the main table keeps Wi-Fi as the default route while the
+   tunnel carries traffic. A mismatch turns the label red.
+
+Waybar integration (already in this repo's
+`.config/waybar/config.jsonc` / `style.css`):
+
+```jsonc
+"custom/vpn": {
+  "exec": "vpn-tray status",
+  "return-type": "json",
+  "interval": 5,
+  "signal": 8,                 // instant refresh: pkill -RTMIN+8 waybar
+  "on-click": "vpn-tray menu",
+  "tooltip": true
+}
+```
+
+Click behaviour:
+
+- fuzzel menu with the active mode marked: WARP / Proton VPN / No VPN /
+  Show status in a terminal.
+- Elevation order: already-cached sudo (`sudo -n`), else `pkexec` (the
+  hyprpolkitagent dialog), else a `foot` terminal running `sudo switch-vpn`.
+- After the switch it re-detects, sends a `notify-send` summary, and pokes
+  Waybar with `RTMIN+8` so the label changes immediately.
+
+Manual checks and reload:
+
+```bash
+vpn-tray text        # one-line state, useful when the bar looks wrong
+vpn-tray status      # raw JSON Waybar consumes
+vpn-tray menu        # same menu outside the bar
+pkill -SIGUSR2 -x waybar   # reload config + CSS after editing them
+```
+
+Optional: skip the password dialog with a sudoers drop-in (this allows only
+`switch-vpn` invocations, but all of them, including mode changes):
+
+```bash
+sudo visudo -f /etc/sudoers.d/vpn-switch
+# daviddeadly ALL=(root) NOPASSWD: /usr/local/sbin/switch-vpn
+sudo visudo -c        # validate
+```
+
+Without it, `pkexec` asks once per switch. `vpn-tray` itself needs no
+privileges; only the menu's switch does. The menu needs a graphical session
+(fuzzel + polkit agent). If `hyprpolkitagent` is not running, `pkexec` fails —
+start the agent, or remove the sudoers line and use `sudo switch-vpn` in a
+terminal.
+
+| Symptom | Check |
+|---|---|
+| No VPN pill in the bar | `vpn-tray status` must print JSON; `pkill -SIGUSR2 -x waybar`; confirm `custom/vpn` is in `modules-right` and `vpn-tray` is in `PATH`. |
+| Pill stays on the old mode | Gives a wrong state? Run `vpn-tray text`. If that is correct, Waybar's module was not reloaded (SIGUSR2). |
+| Pill is red | `ip route get 1.1.1.1` must name the tunnel device; if not, the tunnel is up but not routing (see §10.6). |
+| Click does nothing | Run `vpn-tray menu` in a terminal. Missing `fuzzel`, or no polkit agent and no `foot` fallback. |
+| Password dialog every time | Expected with pkexec; install the sudoers drop-in above if you accept it. |
+
 ---
 
 ## 11. Changelog
@@ -661,3 +756,15 @@ keyring.
   `nmcli device show`). Added a NetworkManager-profile path to
   `switch-vpn proton` (import a WireGuard config, `nmcli connection up`);
   the CLI is now only a fallback. Docs §10.3 records the evidence.
+- 2026-11-18 — added a Waybar indicator + fuzzel menu, `system/vpn-tray.sh`
+  (installed as `/usr/local/bin/vpn-tray`): orange `WARP`, purple `PROTON`,
+  amber `DIRECT`, red when a tunnel is up but traffic is not routed through
+  it. One click switches mode through pkexec (hyprpolkitagent) or cached
+  sudo, then refreshes the bar with `RTMIN+8`. Fixed `switch-vpn`'s tunnel
+  check at the same time: imported Proton profiles are policy-routed, so
+  verification now uses `ip route get 1.1.1.1` instead of the main table
+  (which still points at Wi-Fi), and the CLI fallback also understands
+  `PKEXEC_UID`. Verified all four states and the
+  `warp -> proton -> none -> warp` menu flow against stubs, plus the live
+  indicator on a real Proton tunnel.
+
