@@ -3,7 +3,7 @@
 #
 #   vpn-tray              # Waybar JSON: icon, class, tooltip
 #   vpn-tray text         # one-line plain-text state (debugging, scripts)
-#   vpn-tray menu         # fuzzel menu: WARP / Proton / no VPN / status
+#   vpn-tray menu         # fuzzel menu: WARP / Proton / Tor / no VPN / status
 #
 # Waybar (dotfiles/.config/waybar/config.jsonc):
 #   "custom/vpn": {
@@ -16,14 +16,15 @@
 # sudo when credentials are already cached, so the switch itself still runs as
 # root. Installed as /usr/local/bin/vpn-tray by install.sh.
 #
-# Classes emitted to Waybar: warp, proton, direct, plus "warn" when a tunnel
-# exists but traffic is not actually routed through it.
+# Classes emitted to Waybar: warp, proton, tor, direct, plus "warn" when a
+# tunnel/proxy exists but traffic is not actually routed through it.
 set -uo pipefail
 
 SWITCH_BIN="${SWITCH_BIN:-/usr/local/sbin/switch-vpn}"
 WARP_IF=CloudflareWARP
 WARP_TABLE=65743
 BAR_SIGNAL=8
+ICON_TOR=$'\uf21b'   # fa-user-secret, present in CaskaydiaCove NF
 
 MODE=direct
 DEV=
@@ -56,6 +57,20 @@ stored_wg_profile() {
 detect() {
     MODE=direct DEV= ROUTED=0 NOTE=
     local wg profile
+
+    # Tor is a proxy, not an interface, so it has to be detected from its
+    # units. switch-vpn disables tor-transparent in the other modes, so an
+    # enabled unit is a reliable signal even before the table exists.
+    if systemctl is-enabled --quiet tor-transparent.service 2>/dev/null; then
+        MODE=tor
+        if systemctl is-active --quiet tor-transparent.service 2>/dev/null &&
+            systemctl is-active --quiet tor.service 2>/dev/null; then
+            ROUTED=1
+        else
+            NOTE="Tor routing is enabled but tor-transparent.service or tor.service is not running"
+        fi
+        return 0
+    fi
 
     if ip link show "$WARP_IF" >/dev/null 2>&1; then
         MODE=warp
@@ -111,6 +126,7 @@ print_json() {
     case "$MODE" in
         warp)   icon="" label="WARP"   cls=warp   desc="Cloudflare WARP";;
         proton) icon="" label="PROTON" cls=proton desc="Proton VPN";;
+        tor)    icon="$ICON_TOR" label="TOR" cls=tor desc="Tor (transparent, fail-closed)";;
         *)      icon="" label="DIRECT" cls=direct desc="No VPN (direct via the ISP)";;
     esac
 
@@ -122,7 +138,13 @@ print_json() {
 
     tooltip="$desc"
     [ -n "$DEV" ] && tooltip+=$'\n'"Interface: $DEV"
-    if [ "$ROUTED" -eq 1 ]; then
+    if [ "$MODE" = tor ]; then
+        if [ "$ROUTED" -eq 1 ]; then
+            tooltip+=$'\n'"Traffic: TCP + DNS via Tor, other UDP/IPv6 blocked"
+        else
+            tooltip+=$'\n'"Traffic: NOT routed through Tor"
+        fi
+    elif [ "$ROUTED" -eq 1 ]; then
         tooltip+=$'\n'"Traffic: routed through the tunnel"
     else
         tooltip+=$'\n'"Traffic: NOT routed through the tunnel"
@@ -139,6 +161,7 @@ text_line() {
     case "$MODE" in
         warp)   printf 'WARP (%s)\n' "$DEV";;
         proton) printf 'PROTON (%s)\n' "$DEV";;
+        tor)    printf 'TOR (transparent proxy)\n';;
         *)      printf 'DIRECT (no VPN)\n';;
     esac
     [ "$MODE" = direct ] || [ "$ROUTED" -eq 1 ] ||
@@ -194,10 +217,11 @@ run_switch() {
 menu() {
     detect
 
-    local m_warp= m_proton= m_none= choice want label
+    local m_warp= m_proton= m_tor= m_none= choice want label
     case "$MODE" in
         warp)   m_warp=" (active)";;
         proton) m_proton=" (active)";;
+        tor)    m_tor=" (active)";;
         *)      m_none=" (active)";;
     esac
 
@@ -205,15 +229,17 @@ menu() {
         printf '%s\n' \
             "  Cloudflare WARP$m_warp" \
             "  Proton VPN$m_proton" \
+            "  Tor (transparent)$m_tor" \
             "  No VPN (direct)$m_none" \
             "  Show status in a terminal" |
-            fuzzel --dmenu --prompt="VPN  " --lines=4 --width=34 2>/dev/null
+            fuzzel --dmenu --prompt="VPN  " --lines=5 --width=36 2>/dev/null
     )" || exit 0
     [ -n "$choice" ] || exit 0
 
     case "$choice" in
         *"Cloudflare WARP"*) want=warp   label="Cloudflare WARP";;
         *"Proton VPN"*)      want=proton label="Proton VPN";;
+        *"Tor (transparent)"*) want=tor  label="Tor (transparent)";;
         *"No VPN"*)          want=none   label="no VPN (direct)";;
         *"status"*)          show_status; exit 0;;
         *) exit 0;;
@@ -235,7 +261,12 @@ menu() {
                     "Still on $MODE. Check: sudo $SWITCH_BIN status"
             fi
         elif [ "$MODE" = "$want" ]; then
-            notify "VPN connected: $label" "Interface: $DEV"
+            if [ "$want" = tor ]; then
+                notify "Tor routing active" \
+                    "TCP and DNS go through Tor; other UDP and external IPv6 are blocked."
+            else
+                notify "VPN connected: $label" "Interface: $DEV"
+            fi
         else
             notify "VPN switch failed" \
                 "Expected $want, still on $MODE. Check: sudo $SWITCH_BIN status"

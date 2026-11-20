@@ -98,13 +98,16 @@ explicit, verified plaintext path to `1.1.1.1`, activated only when
 system/
 ├── install.sh                                  # idempotent installer (sudo)
 ├── rollback.sh                                 # undo everything (sudo)
-├── switch-vpn.sh                               # warp | proton | none | status
+├── switch-vpn.sh                               # warp | proton | tor | none | status
 ├── vpn-tray.sh                                 # Waybar indicator + fuzzel menu
 ├── etc/
 │   ├── nftables.conf                           # host firewall
+│   ├── torrc.d/
+│   │   └── 10-transparent.conf                 # TransPort/DNSPort for tor mode
 │   ├── systemd/system/
 │   │   ├── warp-connect.service                # oneshot: ensure WARP connected
 │   │   ├── warp-connect.timer                  # every 60s
+│   │   ├── tor-transparent.service             # oneshot: load/remove `inet tor`
 │   │   ├── unbound-dns-fallback.service        # oneshot: check 853/tcp
 │   │   ├── unbound-dns-fallback.timer          # every 30s
 │   │   └── warp-svc.service.d/
@@ -114,7 +117,9 @@ system/
 │       └── 20-forward-plain.conf.disabled      # inactive: Cloudflare plain
 └── usr/local/
     ├── bin/warp-ensure-connected               # idempotent connect helper
-    └── sbin/unbound-dns-fallback               # DoT/plaintext state machine
+    └── sbin/
+        ├── unbound-dns-fallback                # DoT/plaintext state machine
+        └── tor-transparent                     # fail-closed Tor nftables rules
 ```
 
 Inventory installed on the live system:
@@ -128,6 +133,9 @@ Inventory installed on the live system:
 | `system/usr/local/sbin/unbound-dns-fallback` | same path (0755) |
 | `system/etc/systemd/system/unbound-dns-fallback.{service,timer}` | same path |
 | `system/etc/nftables.conf` | `/etc/nftables.conf` |
+| `system/etc/torrc.d/10-transparent.conf` | `/etc/torrc.d/10-transparent.conf` |
+| `system/usr/local/sbin/tor-transparent` | same path (0755) |
+| `system/etc/systemd/system/tor-transparent.service` | same path |
 | `system/switch-vpn.sh` | `/usr/local/sbin/switch-vpn` (0755) |
 | `system/vpn-tray.sh` | `/usr/local/bin/vpn-tray` (0755) |
 
@@ -142,6 +150,9 @@ installed by `install.sh`.
    `# (disabled by dotfiles/system)`),
 2. appends `include-toplevel: "/etc/unbound/conf.d/*.conf"`.
 
+It does the same kind of guarded append to `/etc/tor/torrc`:
+`%include /etc/torrc.d/*.conf` (Tor's own drop-in mechanism).
+
 Both operations are guarded and idempotent, and every modified file is
 backed up as `<file>.bak.YYYYmmdd-HHMMSS`.
 
@@ -155,6 +166,8 @@ backed up as `<file>.bak.YYYYmmdd-HHMMSS`.
 sudo pacman -S --needed networkmanager unbound nftables openssl bind
 # WARP is AUR:
 yay -S cloudflare-warp-bin     # provides warp-svc + warp-cli
+# Needed by bitcoind (onlynet=onion) and by `switch-vpn tor`:
+sudo pacman -S --needed tor
 # Optional, only for `switch-vpn proton`:
 sudo pacman -S --needed proton-vpn-cli
 ```
@@ -192,9 +205,13 @@ What it does, in order:
    `unbound-checkconf`, reloads Unbound, enables the fallback timer;
 4. validates the firewall with `nft -c -f` **before** copying it, then
    installs and restarts `nftables.service`;
-5. installs `switch-vpn` to `/usr/local/sbin/` and `vpn-tray` to
+5. installs the Tor drop-in, appends `%include /etc/torrc.d/*.conf` to
+   `/etc/tor/torrc` if needed, validates both `torrc` and the `inet tor`
+   ruleset, installs `tor-transparent` and its unit, then restarts `tor`
+   (warns and skips if the `tor` package is missing);
+6. installs `switch-vpn` to `/usr/local/sbin/` and `vpn-tray` to
    `/usr/local/bin/` (warns if `protonvpn` is missing);
-6. prints verification output (WARP status, `ip rule`, exit IP, DNS answer,
+7. prints verification output (WARP status, `ip rule`, exit IP, DNS answer,
    input chain, remaining listeners).
 
 ### 5.4 Rollback
@@ -205,10 +222,11 @@ sudo ./rollback.sh
 ```
 
 It disables the timers and `nftables.service`, removes the installed files
-(including `/usr/local/sbin/switch-vpn` and `/usr/local/bin/vpn-tray`),
-restores the newest `unbound.conf` / `nftables.conf` backup, flushes the
-ruleset and restarts `warp-svc`. It never touches Proton VPN units or
-connections.
+(including `/usr/local/sbin/switch-vpn`, `/usr/local/bin/vpn-tray`,
+`tor-transparent` and the Tor drop-in), restores the newest `unbound.conf` /
+`nftables.conf` / `torrc` backup (or removes only the include line it added),
+flushes the ruleset and restarts `tor` and `warp-svc`. It never touches
+Proton VPN units or connections.
 
 ---
 
@@ -443,21 +461,29 @@ Small deviations from the original plan, all deliberate:
    and Unbound latched onto plaintext. Fixed in
    `usr/local/sbin/unbound-dns-fallback` (`2>&1` before the pipe) and
    re-installed; the resolver returns to DoT on the next 30s tick.
+7. **Tor is a transparent proxy, not a tunnel interface.** The mode redirects
+   traffic with a separate `inet tor` nftables table instead of pretending
+   Tor is a `tun` device. `tor.service` stays enabled in every mode because
+   `bitcoind` is `onlynet=onion`; only `tor-transparent.service` is toggled.
+   Traffic Tor cannot carry (non-DNS UDP, external IPv6) is **dropped**, not
+   leaked, so the mode fails closed (§10.8).
 
 ---
 
-## 10. Switching VPNs (WARP ↔ Proton)
+## 10. Switching VPNs and proxies (WARP ↔ Proton ↔ Tor)
 
 `system/switch-vpn.sh`, installed as `/usr/local/sbin/switch-vpn`, moves the
-host between Cloudflare WARP, Proton VPN and no VPN. DNS, the nftables
-firewall and the LAN rules are independent of the choice and are never
-rewritten by it.
+host between Cloudflare WARP, Proton VPN, Tor and no VPN. DNS and the
+nftables host firewall (`inet filter`) are independent of the choice and are
+never rewritten by it. Tor adds and removes its own separate table,
+`inet tor`.
 
 ```bash
 switch-vpn status                  # read-only, no root needed
 sudo switch-vpn warp               # Cloudflare WARP (this document's default)
 sudo switch-vpn proton             # Proton VPN, fastest server
 sudo switch-vpn proton --country US    # args pass through to `protonvpn connect`
+sudo switch-vpn tor                # Tor, transparent and fail-closed
 sudo switch-vpn none               # direct via the ISP
 ```
 
@@ -478,18 +504,25 @@ the WARP tunnel — nested tunnels, or no handshake at all.
 re-asserts the connection within 60 s and takes the routing back. The switcher
 therefore **disables** the units, not just stops them.
 
+Tor cannot run alongside either VPN: its output redirect would capture their
+handshakes too, and its fail-closed filter drops WireGuard's UDP. The switcher
+therefore removes `inet tor` before bringing WARP or Proton up, and tears the
+VPNs down before installing it.
+
 ### 10.2 What each mode does
 
 | Mode | Actions |
 |---|---|
-| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; **set `connection.autoconnect no` on every stored WireGuard profile**; `nmcli connection down` any active one; wait for it to disappear; enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
-| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); **set autoconnect `no` on all stored WireGuard profiles and `yes` on the chosen one**; bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing; verify with `ip route get 1.1.1.1` |
-| `none` | both of the above teardown halves, in order, including autoconnect `no`; verifies that no VPN route or policy rule remains |
+| `warp` | disable `proton-vpn-kill-switch-boot.service`; `protonvpn disconnect`; stop+disable `proton.VPN.service`; **set `connection.autoconnect no` on every stored WireGuard profile**; `nmcli connection down` any active one; wait for it to disappear; disable `tor-transparent.service` (deletes `inet tor`); enable+start `warp-svc`, `warp-connect.timer`, run `warp-connect.service`; wait for `Connected` and the `65743` rule |
+| `proton` | disable `warp-connect.timer`; stop `warp-connect.service`; `warp-cli disconnect`; stop+disable `warp-svc`; **wait until the `65743` rule is gone** (otherwise Proton loses to it); disable `tor-transparent.service`; **set autoconnect `no` on all stored WireGuard profiles and `yes` on the chosen one**; bring up the imported NetworkManager WireGuard profile (or fall back to the CLI); add `224.0.0.0/4 dev <lan>` if missing; verify with `ip route get 1.1.1.1` |
+| `tor` | the WARP and Proton teardowns above, including autoconnect `no`; enable+start `tor.service` (it stays enabled in every mode for `bitcoind`); enable `tor-transparent.service`, which loads the fail-closed `inet tor` table (external TCP → `127.0.0.1:9040`, UDP/53 → `:5353`, other UDP and external IPv6 dropped); verify that a plain `curl` (no proxy) reports `IsTor:true` and that Unbound still resolves |
+| `none` | the WARP, Proton and Tor teardowns, in order, including autoconnect `no`; verifies that no VPN route, policy rule or `inet tor` table remains |
 | `status` | units, interfaces, `ip rule`, default route, stored/active WireGuard profile, **stored autoconnect flags**, `warp-cli status`, `protonvpn status`, active NM connections, egress IP + org |
 
 Because the units are enabled/disabled, the choice **persists across
-reboots**: `switch-vpn proton` survives a restart, and `switch-vpn warp`
-turns Proton's autostart back off. `none` disables both.
+reboots**: `switch-vpn proton` survives a restart, `switch-vpn tor` leaves
+`tor-transparent.service` enabled, and `switch-vpn warp` turns both off.
+`none` disables everything.
 
 That is only half of the persistence. NetworkManager activates imported
 WireGuard profiles itself, before systemd services run, so each mode also
@@ -619,11 +652,12 @@ keyring.
 ### 10.5 Interaction with the rest of the setup
 
 - **DNS** — unchanged. Unbound keeps forwarding DoT to `1.1.1.1:853`
-  *through whichever tunnel is up*. `dns=none` in NetworkManager stops the
-  Proton NM profile from replacing `/etc/resolv.conf` (the imported config's
-  `DNS = 10.2.0.1` is therefore inert). If a future CLI version starts
-  managing DNS itself, check that `/etc/resolv.conf` still says
-  `nameserver 127.0.0.1`.
+  *through whichever tunnel is up* (in `tor` mode that TCP connection is
+  redirected to TransPort like any other, so it leaves via a Tor exit).
+  `dns=none` in NetworkManager stops the Proton NM profile from replacing
+  `/etc/resolv.conf` (the imported config's `DNS = 10.2.0.1` is therefore
+  inert). If a future CLI version starts managing DNS itself, check that
+  `/etc/resolv.conf` still says `nameserver 127.0.0.1`.
 - **Firewall** — unchanged. Output is `accept`, so WireGuard/OpenVPN handshakes
   work; input stays default-deny, which also applies to `proton0`. Buying
   Proton's port-forwarding add-on would need one explicit accept on that
@@ -639,9 +673,15 @@ keyring.
   connected `192.168.1.0/24` route is more specific than `/0`, so transfers
   keep working, but multicast has no such route and would follow the tunnel.
   `switch-vpn proton` therefore adds `224.0.0.0/4 dev <lan-iface>` (runtime
-  only) so LocalSend/Syncthing discovery keeps working.
-- **`bitcoind`/Tor** — unaffected: loopback and Tor's own outbound traffic go
-  through the active tunnel like any other output.
+  only) so LocalSend/Syncthing discovery keeps working. In `tor` mode the
+  nftables rules leave RFC1918, link-local and multicast direct, so the same
+  discovery and transfers never enter an exit node.
+- **`bitcoind`/Tor** — `tor.service` stays enabled in **every** mode, because
+  the node is `onlynet=onion` and proxies through `127.0.0.1:9050`. In `tor`
+  mode loopback is exempt from the redirect, and sockets owned by uid `tor`
+  are exempt from both the redirect and the drops, so onion peers keep
+  working. In WARP/Proton mode `9050` is loopback output like any other and
+  follows the tunnel.
 
 ### 10.6 Troubleshooting the switch
 
@@ -657,6 +697,12 @@ keyring.
 | Boot helper never connects WARP | `systemctl list-timers warp-connect.timer` shows `LAST`; `warp-connect.service` is triggered by the timer even though it is `disabled` (oneshot, no `[Install]` start at boot). If `LAST` is far in the past, `sudo systemctl restart warp-connect.timer`. |
 | No internet after `switch-vpn none` | A leftover Proton dummy kill-switch connection: `nmcli -t -f NAME,TYPE connection show \| grep -i dummy`, then `protonvpn disconnect` (or re-run `switch-vpn none`). |
 | LAN discovery broken only under Proton | `ip route show 224.0.0.0/4` should name the LAN interface; re-add with `sudo ip route add 224.0.0.0/4 dev wlan0`. |
+| `switch-vpn tor` leaves the real IP visible | `sudo nft list table inet tor` must exist and `systemctl is-active tor-transparent` must be `active`; re-run `sudo switch-vpn tor`. Confirm with `curl -s --noproxy '*' https://check.torproject.org/api/ip`. |
+| Websites fail / time out in `tor` mode | Tor may still be bootstrapping (`journalctl -u tor \| tail`), or the site blocks exits. This is fail-closed by design; switch to WARP/Proton or `none`. |
+| QUIC, games or other UDP apps stop working in `tor` mode | Expected: non-DNS UDP is dropped so it cannot leak. Browsers fall back to TCP; UDP-only apps cannot run in this mode. |
+| `.onion` addresses do not open in a browser in `tor` mode | Transparent routing does not make Unbound resolve `.onion`. Point the browser at SOCKS `127.0.0.1:9050` (`socks5h`) or use Tor Browser. |
+| `switch-vpn tor` says the helper is not installed | Run `sudo /home/daviddeadly/dotfiles/system/install.sh`; it installs `tor-transparent` and its unit. |
+| `tor-transparent: user 'tor' does not exist` | The `tor` package is missing (`sudo pacman -S tor`). |
 | `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`, and also when using an imported profile (the CLI daemon is not needed). |
 
 ### 10.7 Bar indicator and one-click switching — `vpn-tray`
@@ -669,22 +715,27 @@ delegates the actual switch to `switch-vpn` as root.
 |---|---|---|---|---|
 | Cloudflare WARP | ` WARP` | Cloudflare orange | `warp` | interface + "routed through the tunnel" |
 | Proton VPN | ` PROTON` | purple | `proton` | profile/interface + routing state |
+| Tor | ` TOR` | green | `tor` | "TCP + DNS via Tor, other UDP/IPv6 blocked" |
 | No VPN | ` DIRECT` | amber | `direct` | notes if WARP is enabled-but-down or a Proton profile is merely imported |
-| Tunnel up, not routed | same label, red | red | `<state> warn` | "NOT routed through the tunnel" and the reason |
+| Tunnel/proxy up, not routed | same label, red | red | `<state> warn` | "NOT routed through the tunnel" and the reason |
 
 Glyphs are Font Awesome from CaskaydiaCove Nerd Font (`fa-cloud`,
-`fa-shield`, `fa-globe`).
+`fa-shield`, `fa-user-secret` for Tor, `fa-globe`).
 
 How it decides:
 
-1. `CloudflareWARP` exists **and** `ip rule` has `lookup 65743` → WARP.
-2. otherwise an active NetworkManager `wireguard` connection → Proton
+1. `tor-transparent.service` is **enabled** → Tor. Green only when both
+   `tor-transparent.service` and `tor.service` are active; otherwise the pill
+   turns red.
+2. `CloudflareWARP` exists **and** `ip rule` has `lookup 65743` → WARP.
+3. otherwise an active NetworkManager `wireguard` connection → Proton
    (`proton0` from the CLI or an imported profile).
-3. otherwise direct.
-4. Routing is confirmed with `ip route get 1.1.1.1`, not
+4. otherwise direct.
+5. Routing is confirmed with `ip route get 1.1.1.1`, not
    `ip route show default`: imported Proton configs use a `fwmark` and their
    own table, so the main table keeps Wi-Fi as the default route while the
-   tunnel carries traffic. A mismatch turns the label red.
+   tunnel carries traffic. A mismatch turns the label red. Tor has no
+   interface to query; its two units are the signal.
 
 Waybar integration (already in this repo's
 `.config/waybar/config.jsonc` / `style.css`):
@@ -702,8 +753,8 @@ Waybar integration (already in this repo's
 
 Click behaviour:
 
-- fuzzel menu with the active mode marked: WARP / Proton VPN / No VPN /
-  Show status in a terminal.
+- fuzzel menu with the active mode marked: WARP / Proton VPN / Tor
+  (transparent) / No VPN / Show status in a terminal.
 - Elevation order: already-cached sudo (`sudo -n`), else `pkexec` (the
   hyprpolkitagent dialog), else a `foot` terminal running `sudo switch-vpn`.
 - After the switch it re-detects, sends a `notify-send` summary, and pokes
@@ -740,6 +791,103 @@ terminal.
 | Pill is red | `ip route get 1.1.1.1` must name the tunnel device; if not, the tunnel is up but not routing (see §10.6). |
 | Click does nothing | Run `vpn-tray menu` in a terminal. Missing `fuzzel`, or no polkit agent and no `foot` fallback. |
 | Password dialog every time | Expected with pkexec; install the sudoers drop-in above if you accept it. |
+
+### 10.8 Tor mode — transparent, fail-closed
+
+`sudo switch-vpn tor` moves the **whole host** behind Tor without asking each
+application to configure a proxy. It is deliberately different from WARP and
+Proton: Tor is a SOCKS proxy, not a tunnel interface, so the mode is
+implemented with an nftables redirect and two Tor listeners.
+
+Why not SOCKS-only: an opt-in proxy only anonymises the apps that remember to
+use it, while everything else keeps leaking the real address. Since the
+switcher presents Tor as a *mode*, the bar must be able to say "this host is
+routed through Tor" and mean it.
+
+#### Listeners
+
+`system/etc/torrc.d/10-transparent.conf`, loaded through
+`%include /etc/torrc.d/*.conf` (Tor's own mechanism; `install.sh` appends it
+to `/etc/tor/torrc` if it is missing):
+
+```conf
+TransPort 127.0.0.1:9040
+DNSPort 127.0.0.1:5353
+VirtualAddrNetworkIPv4 10.192.0.0/10
+AutomapHostsOnResolve 1
+```
+
+They are installed **unconditionally** and are harmless in the other modes.
+That matters for `bitcoind`: `tor.service` stays enabled everywhere, so
+switching to WARP or Proton never interrupts onion peers. Only
+`tor-transparent.service` is toggled — an ordinary oneshot unit that loads or
+deletes the `inet tor` table.
+
+#### What the rules do
+
+`inet tor` has two `output` chains (the host is not a router, so forwarded
+traffic from containers/VMs is intentionally untouched):
+
+| Chain | Rule | Effect |
+|---|---|---|
+| NAT (`dstnat`, -100) | uid `tor` | Tor's own outbound sockets bypass the redirect (otherwise they would loop into TransPort) |
+| NAT | `10.192.0.0/10` TCP | redirected to TransPort — this is how Tor represents `.onion` names, and it sits inside RFC1918, so it must be checked **before** the LAN exemption |
+| NAT | loopback, RFC1918, link-local, multicast, broadcast | `return`: LAN stays direct |
+| NAT | UDP/53 | redirected to DNSPort `5353` |
+| NAT | all other TCP | redirected to TransPort `9040` |
+| filter (0) | `lo`, IPv6 link-local/ULA/multicast, IPv4 LAN, UDP/123 | allowed |
+| filter | external ICMP except `dest-unreachable`, `time-exceeded`, `parameter-problem` | dropped |
+| filter | all other UDP | **dropped** — QUIC/games cannot leak |
+| filter | external IPv6 | **dropped** |
+
+Consequences:
+
+- **Web/SSH/IMAP/…** use Tor automatically. `curl https://…` (no proxy
+  variables) reports an exit address and `IsTor:true`.
+- **DNS:** apps that use the system resolver talk to Unbound on
+  `127.0.0.1:53`; loopback is exempt, and Unbound's DoT connection to
+  `1.1.1.1:853` is redirected to TransPort like any other TCP. An app that
+  hard-codes `8.8.8.8:53` is caught by the UDP/53 redirect and answered by
+  Tor's DNSPort, so it cannot leak either.
+- **QUIC** (UDP/443) is dropped; browsers fall back to TCP. UDP-only games
+  and tools simply do not work in this mode — by design.
+- **IPv6** outside the LAN is dropped rather than leaked. Happy-eyeballs
+  apps fall back to IPv4.
+- **LAN** (LocalSend, Syncthing, SSH from the LAN, DHCP, mDNS) is direct and
+  unchanged.
+- **NTP** (UDP/123) is allowed so the clock — and therefore Tor — stays sane.
+
+There is no fail-open path: if `tor.service` dies, the redirect remains and
+connections are refused. That is why the pill turns red instead of silently
+showing the ISP address.
+
+#### Verify
+
+```bash
+switch-vpn status                       # tor.service + tor transparent units
+sudo nft list table inet tor            # the live rules
+curl -s --noproxy '*' https://check.torproject.org/api/ip   # IsTor:true
+dig +short @127.0.0.1 example.com       # Unbound still resolving
+ss -lntu | grep -E '127\.0\.0\.1:(9040|9050|5353)'
+```
+
+`switch-vpn tor` performs the same checks itself, including a plain `curl`
+with `--noproxy '*'` so it measures the redirect rather than a proxy variable.
+On the first run after installing the drop-in it restarts `tor.service` once
+to open 9040/5353; on later switches it leaves a healthy daemon alone.
+
+#### Caveats
+
+- Transparent `.onion` browsing needs SOCKS (`127.0.0.1:9050`, `socks5h`) or
+  Tor Browser: Unbound cannot resolve `.onion`. The `10.192.0.0/10` redirect
+  exists for apps that do use SOCKS with hostname resolution.
+- Tor exit policies and destination port blocking apply as usual; some sites
+  refuse exits.
+- Throughput and latency are Tor's, not the ISP's.
+- `tor-transparent up/down/check/status` can be run by hand for debugging;
+  `check` validates the ruleset with `nft -c` without applying it.
+- Removing the mode is just `sudo switch-vpn warp` (or `proton`/`none`),
+  which disables `tor-transparent.service` and deletes the table.
 
 ---
 
@@ -800,4 +948,30 @@ terminal.
   `proton` mode; `status` reports the stored flags. Verified by restarting
   NetworkManager in both modes: WARP-only egress + DNS in WARP mode,
   Proton-only in Proton mode, then restored WARP.
+- 2026-11-19 — added `tor` as a fourth mode. `switch-vpn tor` tears down WARP
+  and Proton, keeps `tor.service` running (it is needed by `bitcoind` in every
+  mode), and enables `tor-transparent.service`, which loads a separate
+  `inet tor` nftables table:
+  - external TCP → TransPort `127.0.0.1:9040`, external UDP/53 → DNSPort
+    `127.0.0.1:5353`;
+  - loopback, RFC1918, link-local, multicast and broadcast stay direct, and
+    uid `tor` is exempt so its own outbound does not loop back into TransPort;
+  - `10.192.0.0/10` (`VirtualAddrNetworkIPv4`) is redirected before the LAN
+    exemption so SOCKS-resolved `.onion` names still work;
+  - non-DNS UDP (QUIC, games), external IPv6 and ICMP echo are **dropped**, so
+    the mode fails closed instead of leaking via the ISP. NTP (UDP/123) is the
+    only external non-Tor UDP path.
+  `torrc` gains `/etc/torrc.d/10-transparent.conf` via `%include`, which is
+  installed unconditionally so mode changes never restart Tor. The first
+  installer run silently skipped the include because `grep -F` matched the
+  commented `#%include` example line; the guard is now anchored to an
+  uncommented directive.
+  The Waybar pill shows ` TOR` in green (`tor` class), and the fuzzel menu
+  gained the entry. Verified live: `warp -> proton -> tor -> warp` transitions
+  remove/add `inet tor` correctly; in Tor mode a plain `curl` (no proxy) exits
+  through a Tor node (`IsTor:true`), Unbound resolves, LAN pings and
+  LocalSend/Syncthing listeners stay direct, external IPv6 and UDP/443 are
+  blocked, and `bitcoind` keeps 4 onion peers through `127.0.0.1:9050`.
+  Restarting NetworkManager in Tor mode brought neither Proton nor WARP back
+  (`autoconnect=no`, `tor-transparent` still enabled), then WARP was restored.
 

@@ -24,6 +24,26 @@ step "Removing the VPN switcher"
 rm -f /usr/local/sbin/switch-vpn
 rm -f /usr/local/bin/vpn-tray
 
+step "Removing transparent Tor routing"
+systemctl disable --now tor-transparent.service 2>/dev/null || true
+rm -f /etc/systemd/system/tor-transparent.service
+rm -f /usr/local/sbin/tor-transparent
+rm -f /etc/torrc.d/10-transparent.conf
+rmdir /etc/torrc.d 2>/dev/null || true
+
+# install.sh only appends the include when it is missing, so its presence does
+# not prove it is ours. The marker line does; without a backup, remove only
+# our block and leave a pre-existing include alone.
+tor_latest="$(ls -1t /etc/tor/torrc.bak.* 2>/dev/null | head -1 || true)"
+if [ -n "$tor_latest" ]; then
+    cp -a "$tor_latest" /etc/tor/torrc
+    echo "   restored /etc/tor/torrc from $tor_latest"
+elif grep -qF '# --- dotfiles/system: load drop-in configs ---' /etc/tor/torrc 2>/dev/null; then
+    sed -i '\|^# --- dotfiles/system: load drop-in configs ---$|d; \|^%include /etc/torrc\.d/\*\.conf$|d' \
+        /etc/tor/torrc
+    echo "   removed the drop-in include from /etc/tor/torrc (no backup found)"
+fi
+
 step "Removing WARP drop-in and helper units"
 rm -f /etc/systemd/system/warp-svc.service.d/10-network-order.conf
 rmdir /etc/systemd/system/warp-svc.service.d 2>/dev/null || true
@@ -64,6 +84,7 @@ nft flush ruleset 2>/dev/null || true
 
 step "Reloading services"
 systemctl daemon-reload
+systemctl restart tor.service 2>/dev/null || true
 systemctl restart warp-svc.service 2>/dev/null || true
 
 if [ -n "$ub_latest" ] || [ -e "$UNBOUND_CONF" ]; then

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# tor-transparent - fail-closed transparent routing for `switch-vpn tor`.
+#
+#   tor-transparent up       # load the `inet tor` nftables table
+#   tor-transparent down     # remove it (traffic returns to the ISP)
+#   tor-transparent check    # validate the ruleset without applying it
+#   tor-transparent status   # print the live ruleset
+#
+# Installed as /usr/local/sbin/tor-transparent and driven by
+# tor-transparent.service, which switch-vpn enables only in tor mode.
+#
+# What the rules do
+# -----------------
+# * output NAT: every external TCP connection is redirected to Tor's
+#   TransPort (127.0.0.1:9040); external UDP/53 goes to DNSPort (5353).
+#   Loopback, RFC1918/LAN, link-local, multicast and broadcast stay direct,
+#   so LocalSend/Syncthing discovery and DHCP still work. 10.192.0.0/10
+#   (VirtualAddrNetworkIPv4) is excluded from the LAN exemption first: that
+#   is how Tor represents .onion names, so it must reach TransPort.
+# * output filter: traffic Tor cannot carry is dropped instead of escaping
+#   via the ISP -- all UDP except DNS (redirected) and NTP 123, external
+#   IPv6, and external ICMP except the errors needed for path-MTU discovery.
+#   This is what makes the mode fail closed.
+# * Tor's own sockets (uid tor) are exempt, otherwise its outbound
+#   connections would be redirected into its own TransPort and loop.
+#
+# The host is not a router: only locally generated traffic is handled, so
+# containers/VMs are intentionally left alone.
+set -uo pipefail
+
+TABLE=tor
+TOR_USER="${TOR_USER:-tor}"
+TRANSPORT=9040
+DNSPORT=5353
+
+die() { printf 'tor-transparent: %s\n' "$*" >&2; exit 1; }
+
+tor_uid() {
+    local uid
+    uid="$(id -u "$TOR_USER" 2>/dev/null)" ||
+        die "user '$TOR_USER' does not exist (is the tor package installed?)"
+    printf '%s' "$uid"
+}
+
+# Never sent to Tor: loopback, private/LAN, link-local, multicast, broadcast.
+LAN_V4='{ 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 224.0.0.0/4, 255.255.255.255 }'
+LAN_V6='{ ::1/128, fe80::/10, fc00::/7, ff00::/8 }'
+
+ruleset() {
+    cat <<EOF
+table inet $TABLE {
+  chain output_nat {
+    type nat hook output priority dstnat; policy accept;
+
+    meta nfproto ipv6 return
+    meta skuid $(tor_uid) return
+
+    # .onion automap range lives inside 10/8, so it must be redirected before
+    # the LAN exemption returns.
+    ip daddr 10.192.0.0/10 meta l4proto tcp redirect to :$TRANSPORT
+    ip daddr $LAN_V4 return
+
+    udp dport 53 redirect to :$DNSPORT
+    meta l4proto tcp redirect to :$TRANSPORT
+  }
+
+  chain output_filter {
+    type filter hook output priority filter; policy accept;
+
+    oifname "lo" return
+    ip6 daddr $LAN_V6 return
+    ip daddr $LAN_V4 return
+    udp dport 123 return
+
+    meta l4proto icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } return
+    meta l4proto icmp drop
+    meta l4proto udp drop
+    meta nfproto ipv6 drop
+  }
+}
+EOF
+}
+
+case "${1:-}" in
+    up)
+        # nft -f is transactional, but re-declaring existing chains fails;
+        # clear the old copy first. A few microseconds without rules is
+        # unavoidable and no worse than any other mode change.
+        nft delete table inet "$TABLE" >/dev/null 2>&1 || true
+        ruleset | nft -f - || die "could not load the nftables ruleset"
+        ;;
+    down)
+        nft delete table inet "$TABLE" >/dev/null 2>&1 || true
+        ;;
+    check)
+        tmp="$(mktemp)"
+        ruleset >"$tmp"
+        if nft -c -f "$tmp"; then rc=0; else rc=1; fi
+        rm -f "$tmp"
+        exit "$rc"
+        ;;
+    status)
+        nft list table inet "$TABLE"
+        ;;
+    *)
+        printf 'usage: %s {up|down|check|status}\n' "$0" >&2
+        exit 2
+        ;;
+esac

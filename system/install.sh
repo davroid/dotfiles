@@ -135,17 +135,81 @@ systemctl restart nftables.service
 ok "nftables.service enabled and applied"
 
 # ---------------------------------------------------------------------------
-# step "4. VPN switcher"
+step "4. Tor: transparent-proxy listeners and rules (opt-in mode)"
+# ---------------------------------------------------------------------------
+TORRC=/etc/tor/torrc
+TORRC_INCLUDE='%include /etc/torrc.d/*.conf'
+
+if ! command -v tor >/dev/null; then
+    warn "tor is not installed; 'switch-vpn tor' will refuse to run (pacman -S tor)"
+else
+    # The drop-in opens TransPort/DNSPort. Both are harmless in the other
+    # modes, so they are installed unconditionally: changing modes must not
+    # need a tor restart (bitcoind keeps its onion connections).
+    install -d -m 0755 /etc/torrc.d
+    install -m 0644 "$SRC/etc/torrc.d/10-transparent.conf" \
+        /etc/torrc.d/10-transparent.conf
+
+    if grep -qE '^[[:space:]]*%include[[:space:]]+/etc/torrc\.d/\*\.conf' "$TORRC"; then
+        ok "torrc already includes /etc/torrc.d/*.conf"
+    else
+        backup "$TORRC"
+        {
+            printf '\n# --- dotfiles/system: load drop-in configs ---\n'
+            printf '%s\n' "$TORRC_INCLUDE"
+        } >> "$TORRC"
+        ok "added %include to $TORRC"
+    fi
+
+    install -m 0644 "$SRC/etc/systemd/system/tor-transparent.service" \
+        /etc/systemd/system/tor-transparent.service
+    install -m 0755 "$SRC/usr/local/sbin/tor-transparent" \
+        /usr/local/sbin/tor-transparent
+
+    # Validate before touching the live configuration.
+    if ! /usr/local/sbin/tor-transparent check; then
+        echo "error: the transparent Tor ruleset failed validation" >&2
+        exit 1
+    fi
+    ok "nft -c passed for the transparent Tor ruleset"
+
+    if tor -f "$TORRC" --verify-config >/dev/null 2>&1; then
+        ok "tor --verify-config passed"
+    else
+        echo "error: tor rejected the new configuration" >&2
+        tor -f "$TORRC" --verify-config || true
+        tor_bak="$(ls -1t "$TORRC".bak.* 2>/dev/null | head -1 || true)"
+        if [ -n "$tor_bak" ]; then
+            cp -a "$tor_bak" "$TORRC"
+            rm -f /etc/torrc.d/10-transparent.conf
+            echo "   restored $TORRC from $tor_bak" >&2
+        fi
+        exit 1
+    fi
+
+    systemctl daemon-reload
+    systemctl enable tor.service >/dev/null 2>&1 || true
+    # Restart so the new listeners exist even if tor was already running.
+    systemctl restart tor.service || warn "tor.service failed to restart; check journalctl -u tor"
+    if systemctl is-active --quiet tor.service; then
+        ok "tor.service active with TransPort 9040 and DNSPort 5353"
+    else
+        warn "tor.service is not active; 'switch-vpn tor' will fail closed"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+step "5. VPN switcher"
 # ---------------------------------------------------------------------------
 install -m 0755 "$SRC/switch-vpn.sh" /usr/local/sbin/switch-vpn
-ok "installed /usr/local/sbin/switch-vpn (warp | proton | none | status)"
+ok "installed /usr/local/sbin/switch-vpn (warp | proton | tor | none | status)"
 install -m 0755 "$SRC/vpn-tray.sh" /usr/local/bin/vpn-tray
 ok "installed /usr/local/bin/vpn-tray (Waybar indicator + fuzzel menu)"
 command -v protonvpn >/dev/null \
     || warn "protonvpn not installed; 'sudo switch-vpn proton' will not work yet"
 
 # ---------------------------------------------------------------------------
-step "5. Verification"
+step "6. Verification"
 # ---------------------------------------------------------------------------
 sleep 2
 echo "-- WARP --"
@@ -181,6 +245,8 @@ Rollback everything:
 
 Useful checks:
     switch-vpn status
+    sudo switch-vpn tor
+    sudo nft list table inet tor
     warp-cli status
     ip rule; ip route show table 65743 | head
     resolvectl status 2>/dev/null || cat /etc/resolv.conf

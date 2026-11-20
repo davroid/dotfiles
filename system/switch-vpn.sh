@@ -4,6 +4,7 @@
 #   sudo ./switch-vpn.sh warp            # Cloudflare WARP, the default setup
 #   sudo ./switch-vpn.sh proton          # Proton VPN
 #   sudo ./switch-vpn.sh proton --country US   # extra args go to `protonvpn connect`
+#   sudo ./switch-vpn.sh tor             # Tor, transparent and fail-closed
 #   sudo ./switch-vpn.sh none            # no VPN (direct via the ISP, fail-open)
 #        ./switch-vpn.sh status          # read-only report, no root needed
 #
@@ -38,6 +39,12 @@
 #   proton-vpn-kill-switch-boot.service; switching away disables it.
 # * DNS (Unbound -> Cloudflare DoT) and the nftables host firewall do not care
 #   which tunnel is up and are left alone.
+# * Tor is different from the two VPNs: it is a proxy, not an interface. The
+#   tor mode redirects external TCP to TransPort 9040 and UDP/53 to DNSPort
+#   5353 with a separate `inet tor` nftables table, and drops what Tor cannot
+#   carry (other UDP, external IPv6), so the mode fails closed. tor.service
+#   itself stays enabled in every mode because bitcoind is onlynet=onion;
+#   only tor-transparent.service is toggled by the switcher.
 set -uo pipefail
 
 PROTON_BIN="$(command -v protonvpn 2>/dev/null || true)"
@@ -243,10 +250,37 @@ ensure_lan_multicast_route() {
 }
 
 # ---------------------------------------------------------------------------
-# mode: warp
+# shared teardown helpers (used by every mode)
 # ---------------------------------------------------------------------------
-use_warp() {
-    step "Disabling Proton VPN"
+
+# Tear down WARP. `strict` aborts when the policy rule lingers: Proton or Tor
+# would be stacked on top of routing that steals their handshakes.
+disable_warp_stack() { # [strict]
+    systemctl disable --now warp-connect.timer >/dev/null 2>&1 || true
+    systemctl stop warp-connect.service >/dev/null 2>&1 || true
+    if systemctl is-active --quiet warp-svc.service; then
+        warp-cli --accept-tos disconnect >/dev/null 2>&1 || true
+    fi
+    systemctl disable --now warp-svc.service >/dev/null 2>&1 || true
+    ok "warp-connect timer and warp-svc disabled"
+    # The policy rule outranks any main-table default route.
+    if [ "${1:-}" = strict ]; then
+        if ! wait_until 15 "WARP policy rule removed" \
+            sh -c "! ip rule show | grep -q 'lookup $WARP_TABLE'"; then
+            die "WARP rule table $WARP_TABLE is still present; refusing to stack Proton or Tor on top of it. Check: ip rule show && systemctl status warp-svc"
+        fi
+        if ip link show "$WARP_IF" >/dev/null 2>&1; then
+            warn "$WARP_IF interface still exists; WARP may still be tearing down"
+        fi
+    else
+        wait_until 15 "WARP policy rule removed" \
+            sh -c "! ip rule show | grep -q 'lookup $WARP_TABLE'" || true
+    fi
+}
+
+# Tear down Proton's daemon, kill switch and imported WireGuard profile, and
+# persist autoconnect=no so NetworkManager cannot resurrect it at boot.
+disable_proton_stack() {
     if ! unit_exists proton.VPN.service; then
         info "proton-vpn-cli is not installed"
     else
@@ -255,7 +289,7 @@ use_warp() {
             as_invoker "$PROTON_BIN" disconnect >/dev/null 2>&1 || true
         fi
         # Disable even when inactive: an enabled daemon would come back on
-        # reboot and could re-create its kill-switch connections behind WARP.
+        # reboot and could re-create its kill-switch connections behind us.
         systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
         if systemctl is-active --quiet proton.VPN.service; then
             warn "proton daemon is still active"
@@ -263,13 +297,43 @@ use_warp() {
             ok "proton daemon stopped and disabled"
         fi
     fi
-    # Persist WARP as the boot choice: without this, NetworkManager brings an
-    # imported Proton profile up on its own, before WARP can connect, and the
-    # two tunnels deadlock (WARP's firewall then leaves the host offline).
     set_wg_autoconnect no
-    # Also tear down an imported WireGuard profile, which the daemon never saw.
     deactivate_wg
     wait_until 10 "WireGuard tunnel down" no_wg_active || true
+}
+
+# Turn off transparent Tor routing without touching tor.service: bitcoind's
+# onlynet=onion needs 127.0.0.1:9050 in every mode.
+disable_tor_routing() {
+    local had=0
+    if unit_exists tor-transparent.service; then
+        if systemctl is-active --quiet tor-transparent.service 2>/dev/null; then
+            had=1
+        fi
+        systemctl disable --now tor-transparent.service >/dev/null 2>&1 || true
+    fi
+    # ExecStop removes the table; do it again for a half-failed unit and for
+    # the case where the unit files were removed by hand.
+    if command -v nft >/dev/null 2>&1 && nft list table inet tor >/dev/null 2>&1; then
+        nft delete table inet tor >/dev/null 2>&1 || true
+        had=1
+    fi
+    if [ "$had" -eq 1 ]; then
+        ok "transparent Tor routing off (tor.service left running for bitcoind)"
+    else
+        info "transparent Tor routing was already off"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# mode: warp
+# ---------------------------------------------------------------------------
+use_warp() {
+    step "Disabling Tor routing"
+    disable_tor_routing
+
+    step "Disabling Proton VPN"
+    disable_proton_stack
 
     step "Enabling Cloudflare WARP"
     systemctl enable --now warp-svc.service >/dev/null 2>&1 || die "could not start warp-svc"
@@ -296,22 +360,11 @@ use_proton() {
        nmcli connection import type wireguard file ~/Downloads/proton-XX.conf"
     fi
 
+    step "Disabling Tor routing"
+    disable_tor_routing
+
     step "Disabling Cloudflare WARP"
-    systemctl disable --now warp-connect.timer >/dev/null 2>&1 || true
-    systemctl stop warp-connect.service >/dev/null 2>&1 || true
-    if systemctl is-active --quiet warp-svc.service; then
-        warp-cli --accept-tos disconnect >/dev/null 2>&1 || true
-    fi
-    systemctl disable --now warp-svc.service >/dev/null 2>&1 || true
-    ok "warp-connect timer and warp-svc disabled"
-    # Critical: the policy rule outranks Proton's main-table default route.
-    if ! wait_until 15 "WARP policy rule removed" \
-        sh -c "! ip rule show | grep -q 'lookup $WARP_TABLE'"; then
-        die "WARP rule table $WARP_TABLE is still present; refusing to stack Proton on top of it. Check: ip rule show && systemctl status warp-svc"
-    fi
-    if ip link show "$WARP_IF" >/dev/null 2>&1; then
-        warn "$WARP_IF interface still exists; WARP may still be tearing down"
-    fi
+    disable_warp_stack strict
 
     step "Starting Proton VPN"
     if [ -n "$profile" ]; then
@@ -377,34 +430,113 @@ use_proton() {
 # mode: none
 # ---------------------------------------------------------------------------
 use_none() {
+    step "Disabling Tor routing"
+    disable_tor_routing
+
     step "Disabling Cloudflare WARP"
-    systemctl disable --now warp-connect.timer >/dev/null 2>&1 || true
-    systemctl stop warp-connect.service >/dev/null 2>&1 || true
-    if systemctl is-active --quiet warp-svc.service; then
-        warp-cli --accept-tos disconnect >/dev/null 2>&1 || true
-    fi
-    systemctl disable --now warp-svc.service >/dev/null 2>&1 || true
-    wait_until 15 "WARP policy rule removed" \
-        sh -c "! ip rule show | grep -q 'lookup $WARP_TABLE'" || true
+    disable_warp_stack
 
     step "Disabling Proton VPN"
-    if ! unit_exists proton.VPN.service; then
-        info "proton-vpn-cli is not installed"
-    else
-        systemctl disable --now proton-vpn-kill-switch-boot.service >/dev/null 2>&1 || true
-        if systemctl is-active --quiet proton.VPN.service; then
-            as_invoker "$PROTON_BIN" disconnect >/dev/null 2>&1 || true
-        fi
-        systemctl disable --now proton.VPN.service >/dev/null 2>&1 || true
-        ok "proton daemon stopped and disabled"
-    fi
-    # Nothing should come back on its own at the next boot.
-    set_wg_autoconnect no
-    deactivate_wg
-    wait_until 10 "WireGuard tunnel down" no_wg_active || true
+    disable_proton_stack
 
     step "Verifying (fail-open, direct via the ISP)"
     ip route show default | sed 's/^/   /'
+    trace
+}
+
+# ---------------------------------------------------------------------------
+# mode: tor
+# ---------------------------------------------------------------------------
+tor_ports_up() {
+    ss -lntu 2>/dev/null | grep -q '127\.0\.0\.1:9040' &&
+        ss -lntu 2>/dev/null | grep -q '127\.0\.0\.1:5353'
+}
+
+# A circuit exists when the SOCKS port can reach the check service. This is
+# also the honest test for "is Tor usable at all", not just "is the unit up".
+tor_ready() {
+    command -v curl >/dev/null 2>&1 || return 1
+    curl -s --socks5-hostname 127.0.0.1:9050 -m 10 \
+        https://check.torproject.org/api/ip 2>/dev/null | grep -q '"IsTor":true'
+}
+
+tor_transparent_active() {
+    systemctl is-active --quiet tor-transparent.service 2>/dev/null &&
+        nft list table inet tor >/dev/null 2>&1
+}
+
+use_tor() {
+    if ! unit_exists tor.service; then
+        die "tor.service not found: install the tor package first (sudo pacman -S tor)"
+    fi
+    if ! [ -x /usr/local/sbin/tor-transparent ] ||
+        ! unit_exists tor-transparent.service; then
+        die "the transparent Tor helper is not installed; run the dotfiles installer:
+       sudo /home/daviddeadly/dotfiles/system/install.sh"
+    fi
+
+    step "Disabling Cloudflare WARP"
+    disable_warp_stack
+
+    step "Disabling Proton VPN"
+    disable_proton_stack
+
+    step "Starting Tor"
+    # tor.service stays enabled in every mode: bitcoind is onlynet=onion and
+    # proxies through 127.0.0.1:9050. Only the routing layer is mode-specific.
+    if systemctl enable --now tor.service >/dev/null 2>&1; then
+        ok "tor.service enabled and running"
+    else
+        warn "tor.service did not start; check journalctl -u tor"
+    fi
+    # The TransPort/DNSPort drop-in needs a restart the first time. Do not
+    # restart a healthy daemon: bitcoind's onion connections would drop.
+    if ! tor_ports_up; then
+        info "TransPort/DNSPort not listening; restarting tor to load the drop-in"
+        systemctl restart tor.service >/dev/null 2>&1 || true
+        wait_until 15 "Tor listeners up" tor_ports_up || true
+    fi
+    wait_until 45 "Tor circuit available" tor_ready || true
+
+    step "Enabling transparent Tor routing (fail-closed)"
+    if systemctl enable --now tor-transparent.service >/dev/null 2>&1; then
+        ok "tor-transparent.service enabled and active"
+    else
+        die "could not enable tor-transparent.service"
+    fi
+
+    step "Verifying (TCP + DNS via Tor, LAN direct, other UDP/IPv6 blocked)"
+    if tor_transparent_active; then
+        ok "nft table 'inet tor' present"
+    else
+        warn "nft table 'inet tor' missing; traffic may not be redirected"
+    fi
+    if tor_ready; then
+        ok "SOCKS 9050: exit node reachable"
+    else
+        warn "Tor is still bootstrapping; traffic fails closed until a circuit exists"
+    fi
+    if command -v curl >/dev/null 2>&1; then
+        local out
+        out="$(curl -s --noproxy '*' -m 20 https://check.torproject.org/api/ip 2>/dev/null)"
+        if printf '%s' "$out" | grep -q '"IsTor":true'; then
+            ok "plain curl (no proxy settings) exits through Tor"
+        else
+            warn "plain curl did not report IsTor; check: sudo nft list table inet tor"
+        fi
+    fi
+    echo "   Tor listeners:"
+    ss -lntu 2>/dev/null | grep -E '127\.0\.0\.1:(9040|9050|5353)\b' | sed 's/^/   /' ||
+        echo "   none"
+    if command -v dig >/dev/null 2>&1; then
+        local dns
+        dns="$(dig +short +time=5 +tries=1 @127.0.0.1 example.com 2>/dev/null | head -2)"
+        if [ -n "$dns" ]; then
+            ok "DNS via Unbound -> Tor: $(printf '%s' "$dns" | tr '\n' ' ')"
+        else
+            warn "DNS via Unbound failed; check journalctl -u unbound -n 30"
+        fi
+    fi
     trace
 }
 
@@ -414,11 +546,11 @@ use_none() {
 trace() {
     if command -v curl >/dev/null; then
         local out
-        out="$(curl -s -m 10 https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null |
+        out="$(curl -s --noproxy '*' -m 10 https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null |
             grep -E '^(ip|loc|warp)=' | tr '\n' ' ')"
         [ -n "$out" ] && info "egress: $out"
         local org
-        org="$(curl -s -m 10 https://ipinfo.io/json 2>/dev/null |
+        org="$(curl -s --noproxy '*' -m 10 https://ipinfo.io/json 2>/dev/null |
             tr -d '\n' | sed -n 's/.*"org"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         [ -n "$org" ] && info "seen as: $org"
     fi
@@ -443,6 +575,12 @@ show_status() {
     printf '   proton NM profile : %s\n' "$(or_none proton_nm_profile)"
     printf '   WG autoconnect    : %s\n' "$(wg_autoconnect_list)"
     printf '   active WG device  : %s\n' "$(or_none wg_active_dev)"
+    printf '   tor.service       : %s (%s)\n' \
+        "$(unit_field is-active tor.service)" \
+        "$(unit_field is-enabled tor.service)"
+    printf '   tor transparent   : %s (%s)\n' \
+        "$(unit_field is-active tor-transparent.service)" \
+        "$(unit_field is-enabled tor-transparent.service)"
 
     echo "interfaces and routes"
     ip -brief addr show 2>/dev/null | grep -E "^($WARP_IF|$PROTON_IF|wlan[0-9]|enp[0-9]|proton)" | sed 's/^/   /'
@@ -472,6 +610,17 @@ show_status() {
     echo "networkmanager"
     nmcli -t -f NAME,TYPE,DEVICE connection show --active 2>/dev/null | sed 's/^/   /'
 
+    echo "tor"
+    ss -lntu 2>/dev/null | grep -E '127\.0\.0\.1:(9040|9050|5353)\b' | sed 's/^/   /' ||
+        echo "   no listeners on 9040/9050/5353"
+    if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+        if nft list table inet tor >/dev/null 2>&1; then
+            echo "   transparent redirect: active (nft table inet tor)"
+        else
+            echo "   transparent redirect: off"
+        fi
+    fi
+
     trace
 }
 
@@ -482,12 +631,12 @@ mode="${1:-status}"
 [ $# -gt 0 ] && shift
 
 case "$mode" in
-    warp|proton|none|status) ;;
+    warp|proton|tor|none|status) ;;
     -h|--help|help)
         sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
-    *) die "unknown mode '$mode' (use: warp | proton | none | status)" ;;
+    *) die "unknown mode '$mode' (use: warp | proton | tor | none | status)" ;;
 esac
 
 if [ "$mode" != status ] && [ "${EUID:-$(id -u)}" -ne 0 ]; then
@@ -497,6 +646,7 @@ fi
 case "$mode" in
     warp)   use_warp ;;
     proton) use_proton "$@" ;;
+    tor)    use_tor ;;
     none)   use_none ;;
     status) show_status ;;
 esac

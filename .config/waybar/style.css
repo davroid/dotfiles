@@ -48,7 +48,8 @@
 }
 
 /* VPN indicator (vpn-tray): orange = Cloudflare WARP, purple = Proton,
-   amber = no VPN, red = tunnel exists but traffic is not routed through it.
+   green = Tor, amber = no VPN, red = the tunnel/proxy exists but traffic is
+   not actually routed through it.
    It is the right half of the network pill: #network is rounded on the left,
    this module closes the pill on the right. */
 #custom-vpn {
@@ -63,6 +64,7 @@
 
 #custom-vpn.warp   { color: #F6821F; }
 #custom-vpn.proton { color: #A78BFA; }
+#custom-vpn.tor    { color: #56D364; }
 #custom-vpn.direct { color: #FFB020; }
 #custom-vpn.warn   { color: #FF4040; }
 

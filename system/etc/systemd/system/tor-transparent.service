@@ -1,0 +1,14 @@
+[Unit]
+Description=Route host traffic through Tor (transparent, fail-closed)
+Documentation=file:///home/daviddeadly/dotfiles/docs/networking.md
+After=tor.service network.target
+Wants=tor.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/tor-transparent up
+ExecStop=/usr/local/sbin/tor-transparent down
+
+[Install]
+WantedBy=multi-user.target
