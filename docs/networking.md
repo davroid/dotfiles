@@ -701,6 +701,7 @@ keyring.
 | Websites fail / time out in `tor` mode | Tor may still be bootstrapping (`journalctl -u tor \| tail`), or the site blocks exits. This is fail-closed by design; switch to WARP/Proton or `none`. |
 | QUIC, games or other UDP apps stop working in `tor` mode | Expected: non-DNS UDP is dropped so it cannot leak. Browsers fall back to TCP; UDP-only apps cannot run in this mode. |
 | `.onion` addresses do not open in a browser in `tor` mode | Transparent routing does not make Unbound resolve `.onion`. Point the browser at SOCKS `127.0.0.1:9050` (`socks5h`) or use Tor Browser. |
+| `switch-vpn tor` pauses after `Starting Tor` | Tor is rebuilding circuits on the new path (WARP/Proton carried the old ones). The switcher restarts `tor` and bounds the wait to ~15 s for a circuit plus 25 s for the end-to-end probe; the redirect is already armed, so nothing leaks meanwhile. Check `journalctl -u tor -n 20`. |
 | `switch-vpn tor` says the helper is not installed | Run `sudo /home/daviddeadly/dotfiles/system/install.sh`; it installs `tor-transparent` and its unit. |
 | `tor-transparent: user 'tor' does not exist` | The `tor` package is missing (`sudo pacman -S tor`). |
 | `switch-vpn status` shows `proton daemon: inactive (disabled)` | Expected after `switch-vpn warp`/`none`, and also when using an imported profile (the CLI daemon is not needed). |
@@ -873,8 +874,21 @@ ss -lntu | grep -E '127\.0\.0\.1:(9040|9050|5353)'
 
 `switch-vpn tor` performs the same checks itself, including a plain `curl`
 with `--noproxy '*'` so it measures the redirect rather than a proxy variable.
-On the first run after installing the drop-in it restarts `tor.service` once
-to open 9040/5353; on later switches it leaves a healthy daemon alone.
+
+Tor's circuits are carried by whatever tunnel is active. When the previous
+mode was WARP or Proton, the switcher **restarts `tor.service`** after tearing
+the tunnel down; left alone, Tor keeps dead circuits for ~60 s (`Network was
+down for 63 seconds`) and the switch looks stuck. Bitcoind's onion peers
+reconnect on their own (verified after the restart). Switching from `none`,
+or re-running `tor`, leaves a healthy daemon alone. The first run after
+installing the drop-in also restarts once to open 9040/5353.
+
+Circuit readiness is reported, not required: the nftables rules are armed
+first, so if Tor is still bootstrapping the host fails closed while the
+command waits a bounded window and then explains the state. The end-to-end
+checks (plain `curl`, Unbound resolution) retry within that window, because
+Unbound's DoT connection is rebuilt through the new circuit and the first
+query after a switch can time out.
 
 #### Caveats
 
@@ -974,4 +988,27 @@ to open 9040/5353; on later switches it leaves a healthy daemon alone.
   blocked, and `bitcoind` keeps 4 onion peers through `127.0.0.1:9050`.
   Restarting NetworkManager in Tor mode brought neither Proton nor WARP back
   (`autoconnect=no`, `tor-transparent` still enabled), then WARP was restored.
+- 2026-11-19 — fixed `switch-vpn tor` appearing to hang for ~2 minutes after
+  `Starting Tor`. Two compounding bugs: `wait_until` counted **attempts**
+  rather than seconds, and each `tor_ready` probe could spend 10 s in curl, so
+  `wait_until 45` could block for minutes; and Tor's circuits are carried by
+  the active tunnel, so tearing WARP down left them dead until Tor noticed
+  (`Network was down for 64 seconds`, `Our IP address has changed`).
+  `wait_until` now uses a wall-clock deadline and `tor_ready` uses 2 s connect
+  / 5 s total timeouts. `use_tor` restarts `tor.service` when the routing is
+  actually carried by WARP (`lookup 65743` rule) or Proton (active WireGuard
+  device) — not merely when `warp-svc` is running — so Tor bootstraps on the
+  new path immediately without costing bitcoind its onion peers on a
+  disconnected WARP. The nftables rules are armed *before* the readiness
+  wait, which is capped at 15 s and only reports the state (fail-closed all
+  the while); the end-to-end `curl` and DNS checks retry for 25 s / 15 s.
+  Also fixed `trace()` returning non-zero when `ipinfo.io` omitted `org`:
+  a successful switch then exited 1 and `vpn-tray` reported "switch
+  cancelled" even though the mode had changed.
+  Verified: `warp -> tor` in 19 s and `proton -> tor` in 22 s including the
+  Tor restart, `tor -> tor` in 14 s, all exit 0 with `IsTor:true`, Unbound
+  answers, and bitcoind back to 4 onion peers after each restart. A first
+  attempt that armed the redirect but hit Unbound's cold DoT circuit showed
+  the retries doing their job; the DNS readout now comes from the probe that
+  succeeded instead of a second query that could race.
 

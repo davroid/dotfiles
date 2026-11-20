@@ -212,14 +212,15 @@ or_none() { local v; v="$("$@")"; printf '%s' "${v:-none}"; }
 
 wait_until() { # wait_until <seconds> <description> <command...>
     local timeout=$1 desc=$2; shift 2
-    local i=0
-    while [ "$i" -lt "$timeout" ]; do
+    local deadline=$((SECONDS + timeout))
+    # A wall-clock deadline, not a retry count: single attempts (curl, warp-cli)
+    # can take several seconds each, so counting iterations multiplied the wait.
+    while [ "$SECONDS" -lt "$deadline" ]; do
         if "$@" >/dev/null 2>&1; then
             ok "$desc"
             return 0
         fi
         sleep 1
-        i=$((i + 1))
     done
     warn "timed out after ${timeout}s: $desc"
     return 1
@@ -454,10 +455,32 @@ tor_ports_up() {
 
 # A circuit exists when the SOCKS port can reach the check service. This is
 # also the honest test for "is Tor usable at all", not just "is the unit up".
+# Keep the timeout short: this runs inside a bounded wait.
 tor_ready() {
     command -v curl >/dev/null 2>&1 || return 1
-    curl -s --socks5-hostname 127.0.0.1:9050 -m 10 \
+    curl -s --socks5-hostname 127.0.0.1:9050 \
+        --connect-timeout 2 -m 5 \
         https://check.torproject.org/api/ip 2>/dev/null | grep -q '"IsTor":true'
+}
+
+# The redirect is measured without proxy variables. This resolves through
+# Unbound first, so it also exercises DoT-over-Tor: right after a switch the
+# fresh circuit can be slow, hence the bounded retries below.
+tor_direct_ok() {
+    command -v curl >/dev/null 2>&1 || return 1
+    curl -s --noproxy '*' --connect-timeout 2 -m 6 \
+        https://check.torproject.org/api/ip 2>/dev/null | grep -q '"IsTor":true'
+}
+
+unbound_resolves() {
+    command -v dig >/dev/null 2>&1 || return 1
+    local ans
+    ans="$(dig +short +time=2 +tries=1 @127.0.0.1 example.com 2>/dev/null |
+        head -2 | tr '\n' ' ')"
+    [ -n "$ans" ] || return 1
+    # Keep the answer from the probe that succeeded: a second query could hit
+    # a cold circuit and print an error right after "ok".
+    UNBOUND_ANSWER="${ans% }"
 }
 
 tor_transparent_active() {
@@ -475,6 +498,17 @@ use_tor() {
        sudo /home/daviddeadly/dotfiles/system/install.sh"
     fi
 
+    # Tor's circuits ride the active tunnel. When WARP or Proton was up,
+    # tearing it down changes Tor's path and every circuit dies; left alone,
+    # Tor takes ~60s to notice ("Network was down for 63 seconds"), which is
+    # what made the switch look hung. Restart it on the new path instead.
+    # Test the routing itself, not the unit: a running-but-disconnected
+    # warp-svc is not carrying anything and must not cost bitcoind its peers.
+    local path_changed=0
+    if warp_rule_present || [ -n "$(wg_active_dev)" ]; then
+        path_changed=1
+    fi
+
     step "Disabling Cloudflare WARP"
     disable_warp_stack
 
@@ -489,14 +523,20 @@ use_tor() {
     else
         warn "tor.service did not start; check journalctl -u tor"
     fi
-    # The TransPort/DNSPort drop-in needs a restart the first time. Do not
-    # restart a healthy daemon: bitcoind's onion connections would drop.
-    if ! tor_ports_up; then
+    local restarted=0
+    if [ "$path_changed" -eq 1 ] && systemctl is-active --quiet tor.service; then
+        info "restarting tor: the removed VPN was carrying its circuits"
+        systemctl restart tor.service >/dev/null 2>&1 || true
+        restarted=1
+    fi
+    if [ "$restarted" -eq 0 ] && ! tor_ports_up; then
         info "TransPort/DNSPort not listening; restarting tor to load the drop-in"
         systemctl restart tor.service >/dev/null 2>&1 || true
+        restarted=1
+    fi
+    if [ "$restarted" -eq 1 ]; then
         wait_until 15 "Tor listeners up" tor_ports_up || true
     fi
-    wait_until 45 "Tor circuit available" tor_ready || true
 
     step "Enabling transparent Tor routing (fail-closed)"
     if systemctl enable --now tor-transparent.service >/dev/null 2>&1; then
@@ -511,33 +551,33 @@ use_tor() {
     else
         warn "nft table 'inet tor' missing; traffic may not be redirected"
     fi
-    if tor_ready; then
-        ok "SOCKS 9050: exit node reachable"
-    else
-        warn "Tor is still bootstrapping; traffic fails closed until a circuit exists"
-    fi
-    if command -v curl >/dev/null 2>&1; then
-        local out
-        out="$(curl -s --noproxy '*' -m 20 https://check.torproject.org/api/ip 2>/dev/null)"
-        if printf '%s' "$out" | grep -q '"IsTor":true'; then
-            ok "plain curl (no proxy settings) exits through Tor"
-        else
-            warn "plain curl did not report IsTor; check: sudo nft list table inet tor"
-        fi
-    fi
     echo "   Tor listeners:"
     ss -lntu 2>/dev/null | grep -E '127\.0\.0\.1:(9040|9050|5353)\b' | sed 's/^/   /' ||
         echo "   none"
-    if command -v dig >/dev/null 2>&1; then
-        local dns
-        dns="$(dig +short +time=5 +tries=1 @127.0.0.1 example.com 2>/dev/null | head -2)"
-        if [ -n "$dns" ]; then
-            ok "DNS via Unbound -> Tor: $(printf '%s' "$dns" | tr '\n' ' ')"
+
+    # The rules are already armed, so this wait is informational: if Tor is
+    # still building circuits, the host fails closed and the mode is correct.
+    local ready=0
+    if wait_until 15 "Tor circuit available" tor_ready; then
+        ready=1
+    fi
+    if [ "$ready" -eq 1 ]; then
+        # Both checks retry: Unbound's DoT connection is rebuilt through the
+        # new circuit, so the first query after a switch may time out.
+        wait_until 25 "plain curl (no proxy settings) exits through Tor" \
+            tor_direct_ok ||
+            warn "check: sudo nft list table inet tor"
+        UNBOUND_ANSWER=
+        if wait_until 15 "DNS via Unbound" unbound_resolves; then
+            info "answers: $UNBOUND_ANSWER"
         else
             warn "DNS via Unbound failed; check journalctl -u unbound -n 30"
         fi
+        trace
+    else
+        info "Tor is still bootstrapping; the redirect is armed and traffic is"
+        info "blocked until a circuit exists (usually under a minute after a VPN)"
     fi
-    trace
 }
 
 # ---------------------------------------------------------------------------
@@ -550,10 +590,13 @@ trace() {
             grep -E '^(ip|loc|warp)=' | tr '\n' ' ')"
         [ -n "$out" ] && info "egress: $out"
         local org
-        org="$(curl -s --noproxy '*' -m 10 https://ipinfo.io/json 2>/dev/null |
+        org="$(curl -s --noproxy '*' --connect-timeout 3 -m 8 https://ipinfo.io/json 2>/dev/null |
             tr -d '\n' | sed -n 's/.*"org"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         [ -n "$org" ] && info "seen as: $org"
     fi
+    # Best-effort diagnostics: never let a missing optional field turn a
+    # successful mode switch into a non-zero exit (vpn-tray reads the code).
+    return 0
 }
 
 # ---------------------------------------------------------------------------
