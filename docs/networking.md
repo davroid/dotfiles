@@ -17,7 +17,7 @@ Host: ASUS TUF Gaming A15 (`davarch`), Arch Linux, kernel 6.18.x-lts.
 | Link | `wlan0` (MediaTek MT7921, Wi-Fi 6) on SSID `JARZ`, DHCP `192.168.1.46/24` | primary NIC; `enp2s0` (Realtek RTL8111) is down |
 | Manager | NetworkManager + dhcpcd, `dns=none` | never rewrites `/etc/resolv.conf`, so Unbound cannot be bypassed |
 | VPN | Cloudflare WARP (`cloudflare-warp-bin`), MASQUE/HTTP3, mode `TunnelOnly`, split-tunnel excludes RFC1918 | full-tunnel for public traffic, LAN stays local |
-| DNS | Unbound on `127.0.0.1:53`, DNSSEC validating, DoT to Cloudflare, automatic plaintext fallback | one resolver, encrypted by default, survives a blocked 853/tcp |
+| DNS | Unbound on `127.0.0.1:53`, DNSSEC validating, DoT to Cloudflare, automatic plaintext fallback (stands down in Tor mode) | one resolver, encrypted by default, survives a blocked 853/tcp |
 | Firewall | nftables, `inet filter`, default-deny inbound | closes clearnet listeners; keeps LAN services usable |
 | Exit | Cloudflare edge (currently `loc=CO`), IPv6 only via WARP (wlan0 has no global v6) | verified with `cloudflare.com/cdn-cgi/trace` |
 
@@ -284,8 +284,6 @@ forward-zone:
     forward-tls-upstream: yes
     forward-addr: 1.1.1.1@853#cloudflare-dns.com
     forward-addr: 1.0.0.1@853#cloudflare-dns.com
-    forward-addr: 2606:4700:4700::1111@853#cloudflare-dns.com
-    forward-addr: 2606:4700:4700::1001@853#cloudflare-dns.com
 ```
 
 Fallback (`20-forward-plain.conf.disabled`, only renamed to `.conf` while
@@ -427,6 +425,7 @@ ls /etc/unbound/conf.d/              # back to 10-forward-dot.conf
 | "What is my IP" shows the ISP address | `warp-cli status`; if `Disconnected`, `sudo systemctl start warp-connect.service` and inspect `journalctl -u warp-svc -b`. Confirm `ip rule` contains `lookup 65743`. |
 | Internet works but is slow to come up after boot | `systemctl status NetworkManager-wait-online`; the WARP drop-in waits for it. |
 | DNS timeouts / SERVFAIL | `ls /etc/unbound/conf.d/` — exactly one `.conf` must be active. `unbound-checkconf` then `journalctl -u unbound -n 50`. |
+| DNS timeouts only in Tor mode | `journalctl -t unbound-fallback` must show no switching while `tor-transparent` is active. Unbound must not have IPv6 `forward-addr` entries (external IPv6 is dropped in this mode, so those queries blackhole). `grep forward-addr /etc/unbound/conf.d/10-forward-dot.conf`. |
 | DNS suddenly plaintext | `journalctl -t unbound-fallback` — the fallback engaged because `853/tcp` was unreachable; it reverts automatically. If it stays plaintext while `openssl s_client -connect 1.1.1.1:853 -brief </dev/null` succeeds, the probe is broken (see §6.3 — stderr must be merged, not discarded). |
 | `systemctl status nftables` says `inactive (dead)` | Expected: the packaged unit is a oneshot without `RemainAfterExit`. Rules are loaded at boot/restart; check `sudo nft list ruleset`. |
 | LocalSend cannot find devices | Discovery is `udp/53317` + mDNS `5353` on `wlan0`; check `LAN_IFS` matches `ip -br link`, and that both devices are on the same L2 (client isolation off). |
@@ -850,6 +849,14 @@ Consequences:
   `1.1.1.1:853` is redirected to TransPort like any other TCP. An app that
   hard-codes `8.8.8.8:53` is caught by the UDP/53 redirect and answered by
   Tor's DNSPort, so it cannot leak either.
+  Only the **IPv4** DoT forwarders are configured: external IPv6 is dropped
+  here, so an IPv6 upstream would blackhole every query that picked it for
+  the resolver's full timeout (8 s+ measured). The 30 s DoT/plaintext
+  watchdog also stands down while `tor-transparent` is active — plaintext
+  would be answered by DNSPort, which strips DNSSEC records, and a 4 s TLS
+  probe flaps against Tor's circuit build time. The switcher reloads Unbound
+  when entering or leaving the mode so upstream sockets are rebuilt on the
+  new path.
 - **QUIC** (UDP/443) is dropped; browsers fall back to TCP. UDP-only games
   and tools simply do not work in this mode — by design.
 - **IPv6** outside the LAN is dropped rather than leaked. Happy-eyeballs
@@ -895,6 +902,11 @@ query after a switch can time out.
 - Transparent `.onion` browsing needs SOCKS (`127.0.0.1:9050`, `socks5h`) or
   Tor Browser: Unbound cannot resolve `.onion`. The `10.192.0.0/10` redirect
   exists for apps that do use SOCKS with hostname resolution.
+- Onion services often present a certificate for their **clearnet** name
+  (Libera: `palladium.libera.chat`), and no public CA issues for `.onion`.
+  Clients that verify the hostname must disable that check for the onion
+  address; the onion name itself authenticates the service. SOCKS5 must send
+  the hostname to Tor (`socks5h`), not resolve it locally.
 - Tor exit policies and destination port blocking apply as usual; some sites
   refuse exits.
 - Throughput and latency are Tor's, not the ISP's.
@@ -1011,4 +1023,17 @@ query after a switch can time out.
   attempt that armed the redirect but hit Unbound's cold DoT circuit showed
   the retries doing their job; the DNS readout now comes from the probe that
   succeeded instead of a second query that could race.
+- 2026-11-19 — fixed intermittent DNS stalls in `tor` mode. Two causes:
+  `10-forward-dot.conf` listed two IPv6 forwarders, but external IPv6 is
+  dropped in this mode, so every query that picked one blackholed for the
+  full resolver timeout (8 s+ measured) before retrying IPv4; and the 30 s
+  DoT watchdog flapped to plaintext because its 4 s TLS probe is shorter
+  than a fresh Tor circuit, reloading Unbound each time. Plaintext is not a
+  valid fallback here either: DNSPort strips DNSSEC records (no
+  DNSKEY/RRSIG), so validation would break. The IPv6 forwarders are gone
+  (IPv4 reaches Cloudflare in every mode), the watchdog now keeps DoT and
+  does not probe while `tor-transparent` is active, and the switcher reloads
+  Unbound when entering or leaving the mode so upstream sockets are rebuilt
+  on the new path. Verified: 15 uncached queries 330–630 ms with no
+  timeouts, `getent hosts` works, `journalctl -t unbound-fallback` silent.
 

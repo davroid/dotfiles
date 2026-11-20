@@ -321,6 +321,9 @@ disable_tor_routing() {
     fi
     if [ "$had" -eq 1 ]; then
         ok "transparent Tor routing off (tor.service left running for bitcoind)"
+        # Unbound's upstream sockets were opened through Tor's redirect. Drop
+        # them so DoT is rebuilt on the path we are about to use.
+        systemctl reload unbound >/dev/null 2>&1 || true
     else
         info "transparent Tor routing was already off"
     fi
@@ -475,8 +478,10 @@ tor_direct_ok() {
 unbound_resolves() {
     command -v dig >/dev/null 2>&1 || return 1
     local ans
-    ans="$(dig +short +time=2 +tries=1 @127.0.0.1 example.com 2>/dev/null |
-        head -2 | tr '\n' ' ')"
+    # `dig` prints ";; communications error ..." on stdout, so a non-empty
+    # capture is not proof of success. Keep only real answer lines.
+    ans="$(dig +short +time=2 +tries=1 @127.0.0.1 example.com A 2>/dev/null |
+        grep -Ev '^[[:space:]]*(;|$)' | head -2 | tr '\n' ' ')"
     [ -n "$ans" ] || return 1
     # Keep the answer from the probe that succeeded: a second query could hit
     # a cold circuit and print an error right after "ok".
@@ -508,6 +513,8 @@ use_tor() {
     if warp_rule_present || [ -n "$(wg_active_dev)" ]; then
         path_changed=1
     fi
+    local was_tor=0
+    tor_transparent_active && was_tor=1
 
     step "Disabling Cloudflare WARP"
     disable_warp_stack
@@ -543,6 +550,12 @@ use_tor() {
         ok "tor-transparent.service enabled and active"
     else
         die "could not enable tor-transparent.service"
+    fi
+    # DoT/DNS sockets were opened on the previous path (WARP, Proton, direct).
+    # Rebuild them through the redirect instead of waiting for them to time out.
+    # Skip when the rules were already active: a reload would only blip DNS.
+    if [ "$was_tor" -eq 0 ] || [ "$path_changed" -eq 1 ]; then
+        systemctl reload unbound >/dev/null 2>&1 || true
     fi
 
     step "Verifying (TCP + DNS via Tor, LAN direct, other UDP/IPv6 blocked)"

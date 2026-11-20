@@ -71,6 +71,18 @@ if [ -f "$DOT" ] && [ -f "$PLAIN" ]; then
     log "WARNING: both forward zones were active, disabled the plaintext one"
 fi
 
+# In Tor mode all DNS already goes through Tor, and a fresh circuit can take
+# longer than the 4 s probe in tls_ok(). The timer used to flap between DoT and
+# plaintext every 30 s, reloading Unbound each time. Plaintext is not a valid
+# fallback here either: UDP/53 is redirected to Tor's DNSPort, which strips
+# DNSSEC records (no DNSKEY/RRSIG), so validation would break. Keep DoT.
+if systemctl is-active --quiet tor-transparent.service; then
+    if [ ! -f "$DOT" ]; then
+        use_dot
+    fi
+    exit 0
+fi
+
 if tls_ok; then
     use_dot
 else
