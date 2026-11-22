@@ -52,17 +52,16 @@ hl.workspace_rule({
 hl.workspace_rule({
 	workspace = 2,
 	monitor = "HDMI-A-1",
-	on_created_empty = "brave",
 })
 
 hl.workspace_rule({
 	workspace = "special:notes",
-	on_created_empty = "obsidian",
+	animation = "slidefadevert",
 })
 
 hl.workspace_rule({
 	workspace = "special:music",
-	on_created_empty = "pear-desktop",
+	animation = "fade",
 })
 
 hl.workspace_rule({
@@ -70,6 +69,7 @@ hl.workspace_rule({
 	gaps_out = 60,
 	gaps_in = 30,
 	border_size = 5,
+	no_shadow = true,
 })
 
 -- See https://wiki.hyprland.org/Configuring/Keywords/
@@ -87,6 +87,36 @@ local fileManager = "yazi"
 local menu = "fuzzel"
 
 local layout = "master"
+
+local workspace_programs = {
+	["1"] = { terminal .. "client" },
+	["2"] = { browser },
+	["special:notes"] = { "obsidian" },
+	["special:music"] = { "pear-desktop" },
+}
+
+hl.on("workspace.created", function(ws)
+	if not ws.is_empty then
+		return
+	end
+
+	local program = workspace_programs[ws.addressable_name]
+	if not program then
+		return
+	end
+
+	local cmd, rules = table.unpack(program)
+
+	-- Shallow-copy the rules table
+	-- Without the copy, it would modify the original table in workspace_programs
+	local shallow_rules = {}
+	for k, v in pairs(rules or {}) do
+		shallow_rules[k] = v
+	end
+	shallow_rules.workspace = ws.addressable_name .. " silent"
+
+	hl.exec_cmd(cmd, shallow_rules)
+end)
 
 --################
 
@@ -140,7 +170,7 @@ hl.env("SWWW_TRANSITION", "any")
 
 hl.env("SWWW_TRANSITION_DURATION", 4)
 
-hl.env("EDITOR", "nvim")
+hl.env("EDITOR", editor)
 
 hl.env("WALLPAPERS", "/home/daviddeadly/dotfiles/images/wallpapers")
 
@@ -190,7 +220,7 @@ hl.config({
 		resize_on_border = false,
 		-- Please see https://wiki.hyprland.org/Configuring/Tearing/ before you turn this on
 		allow_tearing = false,
-		layout = "master",
+		layout = layout,
 		col = {
 			active_border = { colors = { "rgb(94e2d5)", "rgb(24273A)", "rgb(24273A)", "rgb(94e2d5)" }, angle = 45 },
 			inactive_border = { colors = { "rgb(24273A)", "rgb(24273A)", "rgb(24273A)", "rgb(24273A)" }, angle = 45 },
@@ -235,24 +265,6 @@ hl.config({
 	},
 })
 
--- Ref https://wiki.hyprland.org/Configuring/Workspace-Rules/
-
--- "Smart gaps" / "No gaps when only"
-
--- uncomment all if you wish to use that.
-
--- workspace = w[tv1], gapsout:0, gapsin:0
-
--- workspace = f[1], gapsout:0, gapsin:0
-
--- windowrule = bordersize 0, floating:0, onworkspace:w[tv1]
-
--- windowrule = rounding 0, floating:0, onworkspace:w[tv1]
-
--- windowrule = bordersize 0, floating:0, onworkspace:f[1]
-
--- windowrule = rounding 0, floating:0, onworkspace:f[1]
-
 --##############
 
 --## WINDOWS ###
@@ -283,7 +295,7 @@ hl.window_rule({
 		class = "^(" .. browser .. "-browser)$",
 	},
 	workspace = "2",
-	opacity = "0.9 0.8",
+	opacity = "0.98",
 })
 
 hl.window_rule({
@@ -447,9 +459,11 @@ hl.bind("CTRL + code:20", hl.dsp.exec_cmd("wtype -M ctrl \\' -m ctrl"))
 
 -- Utilities
 
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(terminal .. "client yazi"))
+hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(terminal .. "client " .. fileManager))
 
-hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd("fuzzel"))
+-- hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("pypr expose"))
+
+hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd(menu))
 
 hl.bind(mainMod .. " + SHIFT + SPACE", hl.dsp.exec_cmd("~/.config/hypr/scripts/fuzzel-calculator.sh"))
 
@@ -461,7 +475,10 @@ hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("hyprpicker| wl-copy"))
 
 hl.bind(mainMod .. " + code:47", hl.dsp.exec_cmd("wlogout -b 5 -c 0 -r 0 --protocol layer-shell"))
 
-hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd("awww img $(~/.config/hypr/scripts/select_wallpaper.sh)"))
+hl.bind(
+	mainMod .. " + ALT + SPACE",
+	hl.dsp.exec_cmd("awww img -t random $(~/.config/hypr/scripts/select_wallpaper.sh)")
+)
 
 hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("~/.config/hypr/scripts/screenshot.sh"))
 
@@ -562,13 +579,13 @@ hl.bind(mainMod .. " + SHIFT +  4", hl.dsp.window.move({ workspace = 4 }))
 
 -- Move window to workspace without switching
 
-hl.bind(mainMod .. " + CTRL + SHIFT +  1", hl.dsp.window.move({ workspace = 1 }, { follow = false }))
+hl.bind(mainMod .. " + CTRL + SHIFT +  1", hl.dsp.window.move({ workspace = 1, follow = false }))
 
-hl.bind(mainMod .. " + CTRL + SHIFT +  2", hl.dsp.window.move({ workspace = 2 }, { follow = false }))
+hl.bind(mainMod .. " + CTRL + SHIFT +  2", hl.dsp.window.move({ workspace = 2, follow = false }))
 
-hl.bind(mainMod .. " + CTRL + SHIFT +  3", hl.dsp.window.move({ workspace = 3 }, { follow = false }))
+hl.bind(mainMod .. " + CTRL + SHIFT +  3", hl.dsp.window.move({ workspace = 3, follow = false }))
 
-hl.bind(mainMod .. " + CTRL + SHIFT +  4", hl.dsp.window.move({ workspace = 4 }, { follow = false }))
+hl.bind(mainMod .. " + CTRL + SHIFT +  4", hl.dsp.window.move({ workspace = 4, follow = false }))
 
 hl.bind(mainMod .. " + CTRL + up", hl.dsp.focus({ workspace = "e+1" }))
 
@@ -586,7 +603,7 @@ hl.gesture({ fingers = 3, direction = "down", mods = "SUPER", action = "close" }
 
 -- special workspace (scratchpad)
 
-hl.bind(mainMod .. " + D", hl.dsp.workspace.toggle_special("notes"))
+hl.bind(mainMod .. " + N", hl.dsp.workspace.toggle_special("notes"))
 
 hl.bind(mainMod .. " + M", hl.dsp.workspace.toggle_special("music"))
 
@@ -645,10 +662,55 @@ hl.define_submap("Resize", function()
 	hl.bind("J", hl.dsp.window.resize({ x = 0, y = 20, relative = true }), { repeating = true })
 
 	-- Reset submap
-	hl.bind(mainMod .. "+R", hl.dsp.submap("reset"))
+	hl.bind(mainMod .. " + R", hl.dsp.submap("reset"))
 end)
 
--- disable_logs = false;
+hl.config({
+	plugin = {
+		hyprexpo = {
+			dynamic_grid = true,
+			gaps_out = 60,
+			gaps_in = 30,
+			border_width = 5,
+			workspace_method = "center current",
+			cancel_key = "escape",
+		},
+	},
+})
+
+-- might need this guard if it fails when the plugin has not been loaded yet
+-- if hl.plugin and hl.plugin.hyprexpo then
+hl.bind(mainMod .. " + D", function()
+	hl.plugin.hyprexpo.expo("toggle")
+end)
+-- end
+
+hl.define_submap("hyprexpo", function()
+	hl.bind(mainMod .. " + H", function()
+		hl.plugin.hyprexpo.kb_focus("left")
+	end)
+	hl.bind(mainMod .. " + L", function()
+		hl.plugin.hyprexpo.kb_focus("right")
+	end)
+	hl.bind(mainMod .. " + K", function()
+		hl.plugin.hyprexpo.kb_focus("up")
+	end)
+	hl.bind(mainMod .. " + J", function()
+		hl.plugin.hyprexpo.kb_focus("down")
+	end)
+	hl.bind("return", function()
+		hl.plugin.hyprexpo.kb_confirm()
+	end)
+	hl.bind("escape", function()
+		hl.plugin.hyprexpo.expo("cancel")
+	end)
+	hl.bind(mainMod .. " + D", function()
+		hl.plugin.hyprexpo.expo("cancel")
+	end)
+end)
+
+-- Allow hyprpm to load plugins (avoids permission popups)
+hl.permission("/usr/bin/hyprpm", "plugin", "allow")
 
 -- Autostart
 hl.on("hyprland.start", function()
@@ -659,6 +721,7 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("fcitx5")
 	hl.exec_cmd("hypridle")
 	hl.exec_cmd("hyprsunset")
+	hl.exec_cmd("hyprpm reload")
 	hl.exec_cmd("localsend")
 	hl.exec_cmd("otd-daemon")
 	hl.exec_cmd("awww-daemon")

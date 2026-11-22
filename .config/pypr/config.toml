@@ -1,14 +1,18 @@
 [pyprland]
-hyprland_version = "0.49.0"
+hyprland_version = "0.57.2"
 plugins = [
   "magnify",
-  "wallpapers"
+  "wallpapers",
+  "expose"
 ]
+
+[expose]
+include_special = true
 
 [wallpapers]
 path = "~/images/wallpapers/"
-interval = 60
+interval = 30
 extensions = ["jpg", "jpeg", "png"]
-recursive = true
-command = 'awww img "[file]"'
+recurse = true
+command = 'awww img -t random "[file]"'
 clear_command = "awww clear"
